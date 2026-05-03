@@ -82,7 +82,7 @@ cp sample.env .env
 4. **Get Required Credentials**
 - **Bot Token**: Message [@BotFather](https://t.me/BotFather), use `/newbot`
 - **API ID & Hash**: Visit [my.telegram.org](https://my.telegram.org)
-- **Session String**: Use [@StringFatherBot](https://t.me/StringFatherBot) or online generator
+- **Session String**: Use [@StringFatherBot](https://t.me/Dragonstringbot) or online generator
 - **MongoDB**: Free tier at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
 
 5. **Start the Bot**
