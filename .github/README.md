@@ -28,13 +28,13 @@
 
 ---
 
-## ⭐ Star History
+## Star History
 
-<a href="https://star-history.com/#Naman-Devio/AnvuMusic&Date">
+<a href="https://www.star-history.com/?type=date&repos=Naman-Devio%2FAnvuMusic">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=Naman-Devio/AnvuMusic&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=Naman-Devio/AnvuMusic&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=Naman-Devio/AnvuMusic&type=Date" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=Naman-Devio/AnvuMusic&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=Naman-Devio/AnvuMusic&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=Naman-Devio/AnvuMusic&type=date&legend=top-left" />
  </picture>
 </a>
 
