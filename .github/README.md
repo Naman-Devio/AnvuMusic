@@ -30,7 +30,7 @@
 
 ## ⭐ Star History
 
-![Star History](https://api.star-history.com/svg?repos=Naman-Devio/AnvuMusic&type=Date)
+[![Star History](https://api.star-history.com/png?repos=Naman-Devio/AnvuMusic&type=Date)](https://www.star-history.com/#Naman-Devio/AnvuMusic&Date)
 
 ---
 
