@@ -1,0 +1,96 @@
+{
+    "name": "AnvuMusic",
+    "description": "A Telegram bot that streams music into group voice chats with seamless playback and control.",
+    "keywords": ["telegram", "bot", "music", "go", "voice-chat"],
+    "repository": "https://github.com/Naman-Devio/AnvuMusic",
+    "website": "https://github.com/Naman-Devio/AnvuMusic",
+    "stack": "container",
+    "env": {
+        "API_ID": {
+            "description": "Your Telegram API ID from my.telegram.org.",
+            "value": "",
+            "required": true
+        },
+        "API_HASH": {
+            "description": "Your Telegram API Hash from my.telegram.org.",
+            "value": "",
+            "required": true
+        },
+        "TOKEN": {
+            "description": "Your Telegram bot token from @BotFather.",
+            "value": "",
+            "required": true
+        },
+        "MONGO_DB_URI": {
+            "description": "Your MongoDB connection string.",
+            "value": "",
+            "required": true
+        },
+        "STRING_SESSION": {
+            "description": "A Pyrogram string session for the assistant.",
+            "value": "",
+            "required": true
+        },
+        "OWNER_ID": {
+            "description": "The Telegram user ID of the bot's owner.",
+            "value": "",
+            "required": true
+        },
+        "LOGGER_ID": {
+            "description": "The Telegram chat ID where logs will be sent.",
+            "value": "",
+            "required": false
+        },
+        "DURATION_LIMIT": {
+            "description": "The maximum duration of a track in seconds.",
+            "value": "3600",
+            "required": false
+        },
+        "LEAVE_ON_DEMOTED": {
+            "description": "Leave the group when the bot is demoted. Set to true to enable.",
+            "value": "false",
+            "required": false
+        },
+        "QUEUE_LIMIT": {
+            "description": "The maximum number of tracks allowed in the queue.",
+            "value": "10",
+            "required": false
+        },
+        "START_IMG_URL": {
+            "description": "URL of the image to be displayed on the start message.",
+            "value": "https://files.catbox.moe/he87u5.jpg",
+            "required": false
+        },
+        "SUPPORT_CHAT": {
+            "description": "The URL of your support chat.",
+            "value": "https://t.me/+t4FSZuy7t_VmOWE9",
+            "required": false
+        },
+        "SUPPORT_CHANNEL": {
+            "description": "The URL of your support channel.",
+            "value": "https://t.me/ECHOWAVESUPPORT",
+            "required": false
+        },
+        "COOKIES_LINK": {
+            "description": "A space-separated list of batbin.me URLs for cookies.",
+            "value": "",
+            "required": false
+        },
+        "SET_CMDS": {
+            "description": "Set to 'true' to have the bot set its commands on startup.",
+            "value": "true",
+            "required": false
+        },
+        "MAX_AUTH_USERS": {
+            "description": "The maximum number of authorized users per chat.",
+            "value": "25",
+            "required": false
+        }
+    },
+    "formation": {
+        "worker": {
+            "quantity": 1,
+            "size": "basic"
+        }
+    }
+}
