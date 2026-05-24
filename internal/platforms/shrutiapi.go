@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/Laky-64/gologging"
@@ -135,8 +136,25 @@ func (s *ShrutiApiPlatform) downloadWithBase(
 		return "", fmt.Errorf("shrutiapi: token HTTP %d", resp.StatusCode)
 	}
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("shrutiapi: read token response: %w", err)
+	}
+
+	if !strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "application/json") {
+		path := getPath(track, ext)
+		if err := os.WriteFile(path, body, 0o600); err != nil {
+			return "", fmt.Errorf("shrutiapi: write file: %w", err)
+		}
+		if !fileExists(path) {
+			return "", errors.New("shrutiapi: empty file after download")
+		}
+		gologging.InfoF("ShrutiApi: downloaded %s -> %s", track.ID, path)
+		return path, nil
+	}
+
 	var data map[string]any
-	if err := json.NewDecoder(resp.Body).Decode(&data); err != nil {
+	if err := json.Unmarshal(body, &data); err != nil {
 		return "", fmt.Errorf("shrutiapi: decode token response: %w", err)
 	}
 

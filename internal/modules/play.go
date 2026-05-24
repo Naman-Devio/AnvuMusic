@@ -369,19 +369,7 @@ func resolveSearchSelection(
 		return tracks, false, nil
 	}
 
-	trimmed := tracks
-	if len(trimmed) > maxSearchSelectionResults {
-		trimmed = trimmed[:maxSearchSelectionResults]
-	}
-
-	selectionText := buildSearchSelectionMessage(trimmed)
-	_, _ = replyMsg.Edit(selectionText, &tg.SendOptions{ParseMode: "HTML"})
-	pendingSearchSelections[fmt.Sprintf("%d:%d", m.ChannelID(), m.SenderID())] = pendingSearchSelection{
-		opts:      *opts,
-		tracks:    trimmed,
-		expiresAt: time.Now().Add(searchSelectionTTL),
-	}
-	return nil, true, nil
+	return tracks[:1], false, nil
 }
 
 func buildSearchSelectionMessage(tracks []*state.Track) string {
