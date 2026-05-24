@@ -115,6 +115,27 @@ func GetTracks(m *telegram.NewMessage, video bool) ([]*state.Track, error) {
 	return nil, errors.New("no tracks found")
 }
 
+func SearchTracks(query string, video bool) ([]*state.Track, error) {
+	if strings.TrimSpace(query) == "" {
+		return nil, errors.New("empty query")
+	}
+
+	if p := findPlatform(query); p != nil && p.Name() != PlatformYouTube {
+		tracks, err := p.Search(query, video)
+		if err == nil && len(tracks) > 0 {
+			return tracks, nil
+		}
+	}
+
+	gologging.Info("Searching YouTube with query: " + query)
+	tracks, err := yt.GetTracks(query, video)
+	if err != nil {
+		gologging.Error("YouTube search failed: " + err.Error())
+		return nil, err
+	}
+	return tracks, nil
+}
+
 func processURLs(urls []string, video bool) ([]*state.Track, []string) {
 	var allTracks []*state.Track
 	var errs []string
@@ -216,6 +237,15 @@ func Download(
 			track.Source,
 		),
 	)
+
+	if track == nil {
+		return "", errors.New("download failed: nil track")
+	}
+
+	if track.Source == PlatformYouTube {
+		return downloadYouTubeTrack(ctx, track, statusMsg)
+	}
+
 	var errs []string
 
 	platforms := GetOrderedPlatforms()
@@ -253,6 +283,77 @@ func Download(
 	}
 
 	return "", errors.New("no downloader available for source: " + string(track.Source))
+}
+
+func downloadYouTubeTrack(
+	ctx context.Context,
+	track *state.Track,
+	statusMsg *telegram.NewMessage,
+) (string, error) {
+	if f := findFile(track); f != "" {
+		gologging.Debug("YouTube download cache hit -> " + f)
+		return f, nil
+	}
+
+	candidates := []state.Platform{}
+	for _, p := range GetOrderedPlatforms() {
+		if p.Name() == PlatformShrutiApi || p.Name() == PlatformYtDlp {
+			if p.CanDownload(track.Source) {
+				candidates = append(candidates, p)
+			}
+		}
+	}
+
+	if len(candidates) == 0 {
+		return "", errors.New("no YouTube downloaders available")
+	}
+
+	type result struct {
+		path   string
+		err    error
+		name   string
+	}
+
+	resultCh := make(chan result, len(candidates))
+	raceCtx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
+	for _, p := range candidates {
+		platform := p
+		go func() {
+			path, err := platform.Download(raceCtx, track, statusMsg)
+			if err != nil {
+				if errors.Is(err, context.Canceled) {
+					resultCh <- result{err: err, name: string(platform.Name())}
+					return
+				}
+				gologging.WarnF("Download failed via %s: %v", platform.Name(), err)
+				resultCh <- result{err: err, name: string(platform.Name())}
+				return
+			}
+			resultCh <- result{path: path, name: string(platform.Name())}
+		}()
+	}
+
+	var errs []string
+	for i := 0; i < len(candidates); i++ {
+		res := <-resultCh
+		if res.err == nil {
+			cancel()
+			gologging.Info("Download successful via " + res.name + " -> " + res.path)
+			return res.path, nil
+		}
+		if errors.Is(res.err, context.Canceled) {
+			return "", res.err
+		}
+		errs = append(errs, res.name+": "+res.err.Error())
+	}
+
+	if len(errs) > 0 {
+		return "", combineErrors("Multiple download errors occurred", errs)
+	}
+
+	return "", errors.New("no YouTube downloader succeeded")
 }
 
 // --- Helpers ---

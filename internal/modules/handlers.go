@@ -528,6 +528,8 @@ func Init(bot *telegram.Client, assistants *core.AssistantManager) {
 	bot.On("participant", handleParticipantUpdate).SetGroup(70)
 	bot.On("action", handleChatAction).SetGroup(70)
 
+	bot.On("message", handlePendingSearchSelection).SetGroup(55)
+
 	// Message watchers for AFK auto-unmark + keyword filters
 	bot.On("message", func(m *telegram.NewMessage) error {
 		if m.IsCommand() {

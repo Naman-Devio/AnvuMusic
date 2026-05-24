@@ -9,8 +9,10 @@ package platforms
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -19,6 +21,7 @@ import (
 	"github.com/amarnathcjd/gogram/telegram"
 
 	"main/internal/config"
+	"main/internal/cookies"
 	state "main/internal/core/models"
 	"main/internal/utils"
 )
@@ -404,9 +407,12 @@ func (p *YouTubePlatform) fetchMixPlaylist(playlistID string, limit int) ([]*sta
 				continue
 			}
 
-			title := safeString(dig(vid, "title", "simpleText"))
+			title := extractText(dig(vid, "title"))
+			if title == "" {
+				title = "Unknown title"
+			}
 			thumb := getThumbnailURL(vid)
-			duration := parseDuration(safeString(dig(vid, "lengthText", "simpleText")))
+			duration := parseDuration(extractText(dig(vid, "lengthText")))
 
 			t := &state.Track{
 				URL:      "https://www.youtube.com/watch?v=" + id,
@@ -465,11 +471,12 @@ func (p *YouTubePlatform) parseNodes(node any, tracks *[]*state.Track, limit int
 				return
 			}
 
-			title := safeString(dig(vid, "title", "runs", 0, "text"))
+			title := extractText(dig(vid, "title"))
 			thumb := getThumbnailURL(vid)
-			durationText := safeString(dig(vid, "lengthText", "simpleText"))
-			if durationText == "" {
-				return
+			durationText := extractText(dig(vid, "lengthText"))
+			duration := parseDuration(durationText)
+			if title == "" {
+				title = "Unknown title"
 			}
 
 			t := &state.Track{
@@ -477,7 +484,7 @@ func (p *YouTubePlatform) parseNodes(node any, tracks *[]*state.Track, limit int
 				Title:    title,
 				ID:       id,
 				Artwork:  thumb,
-				Duration: parseDuration(durationText),
+				Duration: duration,
 				Source:   PlatformYouTube,
 			}
 			*tracks = append(*tracks, t)
@@ -487,6 +494,146 @@ func (p *YouTubePlatform) parseNodes(node any, tracks *[]*state.Track, limit int
 				p.parseNodes(val, tracks, limit, rendererKey)
 			}
 		}
+	}
+}
+
+func (p *YouTubePlatform) fallbackSearch(query string, limit int) ([]*state.Track, error) {
+	args := []string{"-j", "--no-warnings", "--no-check-certificate", "--ignore-errors"}
+	if cookieFile, err := cookies.GetRandomCookieFile(); err == nil && cookieFile != "" {
+		args = append(args, "--cookies", cookieFile)
+	}
+	args = append(args, fmt.Sprintf("ytsearch%d:%s", limit, query))
+
+	output, err := p.runYtDlp(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	tracks, err := parseYtDlpTracks(output, limit)
+	if err != nil {
+		return nil, err
+	}
+	return tracks, nil
+}
+
+func (p *YouTubePlatform) fallbackFetchVideo(videoID string) (*state.Track, error) {
+	args := []string{"-j", "--no-warnings", "--no-check-certificate", "--ignore-errors"}
+	if cookieFile, err := cookies.GetRandomCookieFile(); err == nil && cookieFile != "" {
+		args = append(args, "--cookies", cookieFile)
+	}
+	args = append(args, "https://www.youtube.com/watch?v="+videoID)
+
+	output, err := p.runYtDlp(args...)
+	if err != nil {
+		return nil, err
+	}
+
+	var info ytDlpTrack
+	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &info); err != nil {
+		return nil, fmt.Errorf("failed to parse yt-dlp metadata: %w", err)
+	}
+
+	if info.ID == "" {
+		return nil, errors.New("yt-dlp metadata missing video id")
+	}
+
+	return ytDlpTrackToStateTrack(&info), nil
+}
+
+func (p *YouTubePlatform) runYtDlp(args ...string) (string, error) {
+	cmd := exec.Command("yt-dlp", args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("yt-dlp failed: %w: %s", err, strings.TrimSpace(string(output)))
+	}
+	return string(output), nil
+}
+
+type ytDlpTrack struct {
+	ID          string  `json:"id"`
+	Title       string  `json:"title"`
+	Duration    float64 `json:"duration"`
+	Thumbnail   string  `json:"thumbnail"`
+	WebpageURL  string  `json:"webpage_url"`
+	OriginalURL string  `json:"original_url"`
+	IsLive      bool    `json:"is_live"`
+}
+
+func parseYtDlpTracks(output string, limit int) ([]*state.Track, error) {
+	var tracks []*state.Track
+	for _, line := range strings.Split(output, "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		var info ytDlpTrack
+		if err := json.Unmarshal([]byte(line), &info); err != nil {
+			continue
+		}
+		if info.ID == "" || info.Title == "" || info.IsLive {
+			continue
+		}
+
+		tracks = append(tracks, ytDlpTrackToStateTrack(&info))
+		if limit > 0 && len(tracks) >= limit {
+			break
+		}
+	}
+
+	if len(tracks) == 0 {
+		return nil, errors.New("no tracks found")
+	}
+	return tracks, nil
+}
+
+func ytDlpTrackToStateTrack(info *ytDlpTrack) *state.Track {
+	url := info.WebpageURL
+	if url == "" {
+		url = info.OriginalURL
+	}
+	if url == "" {
+		url = "https://www.youtube.com/watch?v=" + info.ID
+	}
+
+	return &state.Track{
+		ID:       info.ID,
+		Title:    info.Title,
+		Duration: int(info.Duration),
+		Artwork:  info.Thumbnail,
+		URL:      url,
+		Source:   PlatformYouTube,
+	}
+}
+
+func extractText(value any) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return strings.TrimSpace(v)
+	case map[string]any:
+		if s := strings.TrimSpace(safeString(v["simpleText"])); s != "" {
+			return s
+		}
+		if runs, ok := v["runs"].([]any); ok {
+			var b strings.Builder
+			for _, item := range runs {
+				if run, ok := item.(map[string]any); ok {
+					b.WriteString(strings.TrimSpace(safeString(run["text"])))
+				}
+			}
+			return strings.TrimSpace(b.String())
+		}
+		return ""
+	case []any:
+		var b strings.Builder
+		for _, item := range v {
+			b.WriteString(extractText(item))
+		}
+		return strings.TrimSpace(b.String())
+	default:
+		return ""
 	}
 }
 

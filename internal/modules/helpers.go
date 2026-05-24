@@ -72,6 +72,43 @@ func shouldShowThumb(chatID int64) bool {
 	return !noThumb
 }
 
+func resolveTrackMedia(chatID int64, track *state.Track) string {
+	if track == nil || !shouldShowThumb(chatID) || track.Artwork == "" {
+		return ""
+	}
+
+	art := strings.TrimSpace(track.Artwork)
+	if art == "" {
+		return ""
+	}
+
+	if strings.HasPrefix(art, "/") ||
+		strings.HasPrefix(art, "./") ||
+		strings.HasPrefix(art, "../") ||
+		strings.HasPrefix(art, "cache/") {
+		return art
+	}
+
+	if strings.HasPrefix(art, "http://") || strings.HasPrefix(art, "https://") {
+		generated, err := database.Generate(database.TrackInfo{
+			VideoID:  track.ID,
+			Title:    utils.ShortTitle(track.Title, 28),
+			Artist:   "AnvuMusic",
+			Duration: formatDuration(track.Duration),
+			Views:    "N/A",
+			Artwork:  art,
+		})
+		if err == nil && generated != "" {
+			track.Artwork = generated
+			return generated
+		}
+		track.Artwork = art
+		return utils.CleanURL(art)
+	}
+
+	return art
+}
+
 func F(chatID int64, key string, values ...locales.Arg) string {
 	lang, err := database.Language(chatID)
 	if err != nil {

@@ -128,8 +128,8 @@ func streamEndHandler(
 		ReplyMarkup: core.GetPlayMarkup(cid, r, false),
 	}
 
-	if t.Artwork != "" && shouldShowThumb(chatID) {
-		opt.Media = utils.CleanURL(t.Artwork)
+	if media := resolveTrackMedia(chatID, t); media != "" {
+		opt.Media = media
 	}
 
 	statusMsg, _ = utils.EOR(statusMsg, msgText, opt)

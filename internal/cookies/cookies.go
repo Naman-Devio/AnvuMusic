@@ -36,6 +36,10 @@ var embeddedCookies embed.FS
 func init() {
 	gologging.Debug("🔹 Initializing cookies...")
 
+	if err := os.MkdirAll(cookieDir, 0o700); err != nil {
+		gologging.Fatal("Failed to create cookies directory:", err)
+	}
+
 	if err := copyEmbeddedCookies(); err != nil {
 		gologging.Fatal("Failed to copy embedded cookies:", err)
 	}

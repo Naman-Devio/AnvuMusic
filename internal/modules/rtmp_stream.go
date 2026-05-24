@@ -280,8 +280,8 @@ func handleStream(m *tg.NewMessage, force bool) error {
 		ParseMode: "HTML",
 	}
 
-	if track.Artwork != "" {
-		opt.Media = utils.CleanURL(track.Artwork)
+	if media := resolveTrackMedia(chatID, track); media != "" {
+		opt.Media = media
 	}
 
 	utils.EOR(replyMsg, msgText, opt)

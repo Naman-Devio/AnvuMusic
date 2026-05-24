@@ -307,8 +307,8 @@ func handleReplayAction(
 		ParseMode:   "HTML",
 		ReplyMarkup: core.GetPlayMarkup(cb.ChannelID(), r, false),
 	}
-	if track.Artwork != "" && shouldShowThumb(cb.ChannelID()) {
-		optSend.Media = utils.CleanURL(track.Artwork)
+	if media := resolveTrackMedia(cb.ChannelID(), track); media != "" {
+		optSend.Media = media
 	}
 
 	statusMsg, _ = utils.EOR(statusMsg, msgText, optSend)
@@ -387,8 +387,8 @@ func handleSkipAction(
 		ParseMode:   "HTML",
 		ReplyMarkup: core.GetPlayMarkup(cb.ChannelID(), r, false),
 	}
-	if t.Artwork != "" && shouldShowThumb(cb.ChannelID()) {
-		sendOpt.Media = utils.CleanURL(t.Artwork)
+	if media := resolveTrackMedia(cb.ChannelID(), t); media != "" {
+		sendOpt.Media = media
 	}
 
 	statusMsg, _ = utils.EOR(statusMsg, msgText, sendOpt)

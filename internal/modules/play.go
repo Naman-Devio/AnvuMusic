@@ -34,7 +34,19 @@ type playOpts struct {
 	Video bool
 }
 
-const playMaxRetries = 3
+const (
+	playMaxRetries            = 3
+	maxSearchSelectionResults = 5
+	searchSelectionTTL        = 2 * time.Minute
+)
+
+type pendingSearchSelection struct {
+	opts      playOpts
+	tracks    []*state.Track
+	expiresAt time.Time
+}
+
+var pendingSearchSelections = make(map[string]pendingSearchSelection)
 
 func init() {
 	helpTexts["/play"] = `<i>Play a song in the voice chat from YouTube, Spotify, or other sources.</i>
@@ -272,17 +284,39 @@ func handlePlay(m *tg.NewMessage, opts *playOpts) error {
 		return tg.ErrEndGroup
 	}
 
-	tracks, isActive, err := fetchTracksAndCheckStatus(
-		m,
-		replyMsg,
-		r,
-		opts.Video,
+	query := getPlayQuery(m)
+	var (
+		tracks         []*state.Track
+		isActive       bool
+		shouldSelect   bool
+		availableSlots int
 	)
-	if err != nil {
-		return tg.ErrEndGroup
+
+	if query != "" && !m.IsReply() && !isDirectURLRequest(m) {
+		tracks, shouldSelect, err = resolveSearchSelection(m, replyMsg, opts)
+		if err != nil {
+			return tg.ErrEndGroup
+		}
+		if shouldSelect {
+			return tg.ErrEndGroup
+		}
+		isActive, err = ensureVoiceReady(r, replyMsg)
+		if err != nil {
+			return tg.ErrEndGroup
+		}
+	} else {
+		tracks, isActive, err = fetchTracksAndCheckStatus(
+			m,
+			replyMsg,
+			r,
+			opts.Video,
+		)
+		if err != nil {
+			return tg.ErrEndGroup
+		}
 	}
 
-	tracks, availableSlots, err := filterAndTrimTracks(replyMsg, r, tracks)
+	tracks, availableSlots, err = filterAndTrimTracks(replyMsg, r, tracks)
 	if err != nil {
 		return tg.ErrEndGroup
 	}
@@ -290,6 +324,146 @@ func handlePlay(m *tg.NewMessage, opts *playOpts) error {
 	if err := playTracksAndRespond(
 		m, replyMsg, r, tracks, mention,
 		isActive, opts.Force, availableSlots,
+	); err != nil {
+		return err
+	}
+
+	return tg.ErrEndGroup
+}
+
+func getPlayQuery(m *tg.NewMessage) string {
+	parts := strings.SplitN(m.Text(), " ", 2)
+	if len(parts) <= 1 {
+		return ""
+	}
+	return strings.TrimSpace(parts[1])
+}
+
+func isDirectURLRequest(m *tg.NewMessage) bool {
+	urls, err := utils.ExtractURLs(m)
+	return err == nil && len(urls) > 0
+}
+
+func resolveSearchSelection(
+	m *tg.NewMessage,
+	replyMsg *tg.NewMessage,
+	opts *playOpts,
+) ([]*state.Track, bool, error) {
+	query := getPlayQuery(m)
+	if query == "" {
+		return nil, false, nil
+	}
+
+	tracks, err := platforms.SearchTracks(query, opts.Video)
+	if err != nil {
+		utils.EOR(replyMsg, F(m.ChannelID(), "no_song_found"))
+		return nil, false, err
+	}
+
+	if len(tracks) == 0 {
+		utils.EOR(replyMsg, F(m.ChannelID(), "no_song_found"))
+		return nil, false, fmt.Errorf("no tracks found")
+	}
+
+	if len(tracks) == 1 {
+		return tracks, false, nil
+	}
+
+	trimmed := tracks
+	if len(trimmed) > maxSearchSelectionResults {
+		trimmed = trimmed[:maxSearchSelectionResults]
+	}
+
+	selectionText := buildSearchSelectionMessage(trimmed)
+	_, _ = replyMsg.Edit(selectionText, &tg.SendOptions{ParseMode: "HTML"})
+	pendingSearchSelections[fmt.Sprintf("%d:%d", m.ChannelID(), m.SenderID())] = pendingSearchSelection{
+		opts:      *opts,
+		tracks:    trimmed,
+		expiresAt: time.Now().Add(searchSelectionTTL),
+	}
+	return nil, true, nil
+}
+
+func buildSearchSelectionMessage(tracks []*state.Track) string {
+	var b strings.Builder
+
+	b.WriteString("<b>Select a track</b>\n")
+	b.WriteString("Reply with <b>1</b> to <b>")
+	b.WriteString(strconv.Itoa(len(tracks)))
+	b.WriteString("</b> to play your preferred result.\n\n")
+
+	for i, track := range tracks {
+		b.WriteString(fmt.Sprintf("%d. <b>%s</b>\n", i+1, html.EscapeString(utils.ShortTitle(track.Title, 55))))
+		b.WriteString(fmt.Sprintf("   <code>%s</code>\n", formatDuration(track.Duration)))
+	}
+
+	b.WriteString("\n<i>Reply with the number or type <b>cancel</b> to stop.</i>")
+	return b.String()
+}
+
+func handlePendingSearchSelection(m *tg.NewMessage) error {
+	if m == nil || !m.IsReply() {
+		return nil
+	}
+
+	key := fmt.Sprintf("%d:%d", m.ChannelID(), m.SenderID())
+	selection, ok := pendingSearchSelections[key]
+	if !ok {
+		return nil
+	}
+	delete(pendingSearchSelections, key)
+
+	if time.Now().After(selection.expiresAt) {
+		m.Reply("This search selection has expired. Please run /play again.")
+		return tg.ErrEndGroup
+	}
+
+	text := strings.TrimSpace(m.Text())
+	if strings.EqualFold(text, "cancel") {
+		m.Reply("Search selection cancelled.")
+		return tg.ErrEndGroup
+	}
+
+	index, err := strconv.Atoi(text)
+	if err != nil || index < 1 || index > len(selection.tracks) {
+		m.Reply(fmt.Sprintf("Please reply with a number from 1 to %d.", len(selection.tracks)))
+		return tg.ErrEndGroup
+	}
+
+	replyMsg, err := m.Reply(F(m.ChannelID(), "searching"))
+	if err != nil {
+		gologging.ErrorF("Failed to send selected track status message: %v", err)
+		return tg.ErrEndGroup
+	}
+
+	r, err := getEffectiveRoom(m, selection.opts.CPlay)
+	if err != nil {
+		m.Reply(err.Error())
+		return tg.ErrEndGroup
+	}
+	r.Parse()
+
+	if len(r.Queue()) >= config.QueueLimit {
+		m.Reply(F(m.ChannelID(), "queue_limit_reached", locales.Arg{
+			"limit": config.QueueLimit,
+		}))
+		return tg.ErrEndGroup
+	}
+
+	isActive, err := ensureVoiceReady(r, replyMsg)
+	if err != nil {
+		return tg.ErrEndGroup
+	}
+
+	tracks, availableSlots, err := filterAndTrimTracks(replyMsg, r, []*state.Track{selection.tracks[index-1]})
+	if err != nil {
+		return tg.ErrEndGroup
+	}
+
+	mention := utils.MentionHTML(m.Sender)
+	if err := playTracksAndRespond(
+		m, replyMsg, r, tracks, mention,
+		isActive, selection.opts.Force, availableSlots,
 	); err != nil {
 		return err
 	}
@@ -366,59 +540,67 @@ func fetchTracksAndCheckStatus(
 		return nil, false, fmt.Errorf("no tracks found")
 	}
 
+	isActive, err := ensureVoiceReady(r, replyMsg)
+	if err != nil {
+		return nil, false, err
+	}
+	return tracks, isActive, nil
+}
+
+func ensureVoiceReady(r *core.RoomState, replyMsg *tg.NewMessage) (bool, error) {
 	isActive := r.IsActiveChat()
 	cs, err := core.GetChatState(r.ChatID())
 	if err != nil {
 		gologging.ErrorF("Error getting chat state: %v", err)
-		utils.EOR(replyMsg, getErrorMessage(m.ChannelID(), err))
-		return nil, false, err
+		utils.EOR(replyMsg, getErrorMessage(replyMsg.ChannelID(), err))
+		return false, err
 	}
 
 	activeVC, err := cs.IsActiveVC(false)
 	if err != nil {
 		gologging.ErrorF("Error checking voicechat state: %v", err)
-		utils.EOR(replyMsg, getErrorMessage(m.ChannelID(), err))
-		return nil, false, err
+		utils.EOR(replyMsg, getErrorMessage(replyMsg.ChannelID(), err))
+		return false, err
 	}
 
 	if !activeVC {
-		utils.EOR(replyMsg, F(m.ChannelID(), "err_no_active_voicechat"))
-		return nil, false, fmt.Errorf("no active voice chat")
+		utils.EOR(replyMsg, F(replyMsg.ChannelID(), "err_no_active_voicechat"))
+		return false, fmt.Errorf("no active voice chat")
 	}
 
 	banned, err := cs.IsAssistantBanned(false)
 	if err != nil {
 		gologging.ErrorF("Error checking assistant banned state: %v", err)
-		utils.EOR(replyMsg, getErrorMessage(m.ChannelID(), err))
-		return nil, false, err
+		utils.EOR(replyMsg, getErrorMessage(replyMsg.ChannelID(), err))
+		return false, err
 	}
 
 	if banned {
 		utils.EOR(replyMsg,
-			F(m.ChannelID(), "err_assistant_banned", locales.Arg{
+			F(replyMsg.ChannelID(), "err_assistant_banned", locales.Arg{
 				"user": utils.MentionHTML(cs.Assistant.Self),
 				"id":   utils.IntToStr(cs.Assistant.Self.ID),
 			}),
 		)
-		return nil, false, fmt.Errorf("assistant banned")
+		return false, fmt.Errorf("assistant banned")
 	}
 
 	present, err := cs.IsAssistantPresent(false)
 	if err != nil {
 		gologging.ErrorF("Error checking assistant presence: %v", err)
-		utils.EOR(replyMsg, getErrorMessage(m.ChannelID(), err))
-		return nil, false, err
+		utils.EOR(replyMsg, getErrorMessage(replyMsg.ChannelID(), err))
+		return false, err
 	}
 
 	if !present {
 		if err := cs.TryJoin(); err != nil {
 			gologging.ErrorF("Error joining assistant: %v", err)
-			utils.EOR(replyMsg, getErrorMessage(m.ChannelID(), err))
-			return nil, false, err
+			utils.EOR(replyMsg, getErrorMessage(replyMsg.ChannelID(), err))
+			return false, err
 		}
 		time.Sleep(1 * time.Second)
 	}
-	return tracks, isActive, nil
+	return isActive, nil
 }
 
 func filterAndTrimTracks(
@@ -594,8 +776,8 @@ func playTracksAndRespond(
 			ReplyMarkup: btn,
 		}
 
-		if mainTrack.Artwork != "" && shouldShowThumb(chatID) {
-			opt.Media = utils.CleanURL(mainTrack.Artwork)
+		if media := resolveTrackMedia(chatID, mainTrack); media != "" {
+			opt.Media = media
 		}
 
 		nowPlayingText := F(chatID, "stream_now_playing", locales.Arg{

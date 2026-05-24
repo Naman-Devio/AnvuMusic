@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"time"
 
@@ -24,8 +25,10 @@ import (
 )
 
 const (
-	PlatformShrutiApi state.PlatformName = "ShrutiApi"
-	shrutiBaseURL                        = "https://shrutibots.site"
+	PlatformShrutiApi    state.PlatformName = "ShrutiApi"
+	shrutiPrimaryBaseURL                     = "https://api.shrutibots.site"
+	shrutiLegacyBaseURL                      = "https://shrutibots.site"
+	shrutiAPIKey                             = "ShrutiBotslKqAAhXsyOVUPWb7EmIg"
 )
 
 type ShrutiApiPlatform struct {
@@ -61,7 +64,6 @@ func (s *ShrutiApiPlatform) Download(
 	track *state.Track,
 	_ *telegram.NewMessage,
 ) (string, error) {
-	// Check local cache first
 	if f := findFile(track); f != "" {
 		gologging.Debug("ShrutiApi: cache hit -> " + f)
 		return f, nil
@@ -75,11 +77,49 @@ func (s *ShrutiApiPlatform) Download(
 	}
 
 	youtubeURL := "https://www.youtube.com/watch?v=" + track.ID
-	endpoint := fmt.Sprintf("%s/download?url=%s&type=%s", shrutiBaseURL, youtubeURL, mediaType)
+	baseURLs := []string{shrutiPrimaryBaseURL, shrutiLegacyBaseURL}
 
-	gologging.DebugF("ShrutiApi: requesting token for %s (%s)", track.ID, mediaType)
+	var lastErr error
+	for _, baseURL := range baseURLs {
+		path, err := s.downloadWithBase(ctx, baseURL, youtubeURL, mediaType, track, ext)
+		if err == nil {
+			if baseURL != shrutiPrimaryBaseURL {
+				gologging.WarnF("ShrutiApi: recovered via legacy endpoint for %s", track.ID)
+			}
+			return path, nil
+		}
+		lastErr = err
+		if errors.Is(err, context.Canceled) {
+			return "", err
+		}
+		gologging.WarnF("ShrutiApi: failed on %s for %s: %v", baseURL, track.ID, err)
+	}
 
-	// Step 1: get download token
+	if lastErr != nil {
+		return "", lastErr
+	}
+	return "", errors.New("shrutiapi: download failed")
+}
+
+func (s *ShrutiApiPlatform) downloadWithBase(
+	ctx context.Context,
+	baseURL string,
+	youtubeURL string,
+	mediaType string,
+	track *state.Track,
+	ext string,
+) (string, error) {
+	encodedURL := url.QueryEscape(youtubeURL)
+	endpoint := fmt.Sprintf(
+		"%s/download?url=%s&type=%s&api_key=%s",
+		baseURL,
+		encodedURL,
+		mediaType,
+		url.QueryEscape(shrutiAPIKey),
+	)
+
+	gologging.DebugF("ShrutiApi: requesting token for %s (%s) via %s", track.ID, mediaType, baseURL)
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return "", fmt.Errorf("shrutiapi: build request: %w", err)
@@ -109,8 +149,13 @@ func (s *ShrutiApiPlatform) Download(
 		return "", errors.New("shrutiapi: no download_token in response")
 	}
 
-	// Step 2: stream the file
-	streamURL := fmt.Sprintf("%s/stream/%s?token=%s&type=%s", shrutiBaseURL, track.ID, token, mediaType)
+	streamURL := fmt.Sprintf(
+		"%s/stream/%s?token=%s&type=%s",
+		baseURL,
+		track.ID,
+		token,
+		mediaType,
+	)
 	gologging.DebugF("ShrutiApi: streaming from %s", streamURL)
 
 	sreq, err := http.NewRequestWithContext(ctx, http.MethodGet, streamURL, nil)
