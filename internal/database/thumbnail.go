@@ -499,7 +499,15 @@ func truncate(s string, maxRunes int) string {
 // ─── I/O helpers ─────────────────────────────────────────────────────────────
 
 func downloadFile(url, dest string) error {
-	resp, err := httpClient.Get(url)
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
+	req.Header.Set("Referer", "https://www.youtube.com/")
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}

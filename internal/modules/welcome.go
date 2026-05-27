@@ -79,6 +79,7 @@ func welcomeHandler(m *tg.NewMessage) error {
 // handleNewMember is called from chat action handler when a user joins
 func handleNewMember(client *tg.Client, chatID int64, user *tg.UserObj) {
 	enabled, err := database.GetWelcome(chatID)
+	gologging.DebugF("handleNewMember chat=%d enabled=%t err=%v", chatID, enabled, err)
 	if err != nil || !enabled {
 		return
 	}
@@ -98,6 +99,7 @@ func handleNewMember(client *tg.Client, chatID int64, user *tg.UserObj) {
 // handleLeftMember is called from chat action handler when a user leaves
 func handleLeftMember(client *tg.Client, chatID int64, user *tg.UserObj) {
 	enabled, err := database.GetWelcome(chatID)
+	gologging.DebugF("handleLeftMember chat=%d enabled=%t err=%v", chatID, enabled, err)
 	if err != nil || !enabled {
 		return
 	}

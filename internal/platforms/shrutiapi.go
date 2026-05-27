@@ -29,7 +29,15 @@ const (
 	PlatformShrutiApi    state.PlatformName = "ShrutiApi"
 	shrutiPrimaryBaseURL                     = "https://api.shrutibots.site"
 	shrutiLegacyBaseURL                      = "https://shrutibots.site"
-	shrutiAPIKey                             = "ShrutiBotslKqAAhXsyOVUPWb7EmIg"
+	riteshDefaultBaseURL                    = "https://api.riteshyt.in"
+)
+
+var (
+	shrutiAPIKey    = "ShrutiBotslKqAAhXsyOVUPWb7EmIg"
+	riteshBaseURL   = riteshDefaultBaseURL
+	riteshAPIKey    = "ritesh_free_3349aed8ab6e1bcd3e51999c"
+	shrutiUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+	shrutiAccept   = "application/json, text/plain, */*"
 )
 
 type ShrutiApiPlatform struct {
@@ -38,6 +46,15 @@ type ShrutiApiPlatform struct {
 }
 
 func init() {
+	if key := strings.TrimSpace(os.Getenv("SHRUTI_API_KEY")); key != "" {
+		shrutiAPIKey = key
+	}
+	if apiURL := strings.TrimSpace(os.Getenv("API_URL")); apiURL != "" {
+		riteshBaseURL = strings.TrimRight(apiURL, "/")
+	}
+	if key := strings.TrimSpace(os.Getenv("API_KEY")); key != "" {
+		riteshAPIKey = key
+	}
 	Register(85, &ShrutiApiPlatform{
 		name:   PlatformShrutiApi,
 		client: &http.Client{Timeout: 90 * time.Second},
@@ -96,6 +113,17 @@ func (s *ShrutiApiPlatform) Download(
 		gologging.WarnF("ShrutiApi: failed on %s for %s: %v", baseURL, track.ID, err)
 	}
 
+	if path, err := s.downloadWithRitesh(ctx, youtubeURL, mediaType, track, ext); err == nil {
+		gologging.InfoF("ShrutiApi: recovered via Ritesh fallback for %s", track.ID)
+		return path, nil
+	} else if !errors.Is(err, context.Canceled) {
+		gologging.WarnF("ShrutiApi: Ritesh fallback failed for %s: %v", track.ID, err)
+		if lastErr != nil {
+			return "", fmt.Errorf("%w; ritesh fallback: %v", lastErr, err)
+		}
+		return "", err
+	}
+
 	if lastErr != nil {
 		return "", lastErr
 	}
@@ -125,6 +153,8 @@ func (s *ShrutiApiPlatform) downloadWithBase(
 	if err != nil {
 		return "", fmt.Errorf("shrutiapi: build request: %w", err)
 	}
+	req.Header.Set("User-Agent", shrutiUserAgent)
+	req.Header.Set("Accept", shrutiAccept)
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -133,7 +163,8 @@ func (s *ShrutiApiPlatform) downloadWithBase(
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("shrutiapi: token HTTP %d", resp.StatusCode)
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("shrutiapi: token HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
 	body, err := io.ReadAll(resp.Body)
@@ -180,6 +211,8 @@ func (s *ShrutiApiPlatform) downloadWithBase(
 	if err != nil {
 		return "", fmt.Errorf("shrutiapi: build stream request: %w", err)
 	}
+	sreq.Header.Set("User-Agent", shrutiUserAgent)
+	sreq.Header.Set("Accept", shrutiAccept)
 
 	sresp, err := s.client.Do(sreq)
 	if err != nil {
@@ -188,7 +221,8 @@ func (s *ShrutiApiPlatform) downloadWithBase(
 	defer sresp.Body.Close()
 
 	if sresp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("shrutiapi: stream HTTP %d", sresp.StatusCode)
+		body, _ := io.ReadAll(sresp.Body)
+		return "", fmt.Errorf("shrutiapi: stream HTTP %d: %s", sresp.StatusCode, strings.TrimSpace(string(body)))
 	}
 
 	path := getPath(track, ext)
@@ -205,6 +239,72 @@ func (s *ShrutiApiPlatform) downloadWithBase(
 
 	if !fileExists(path) {
 		return "", errors.New("shrutiapi: empty file after download")
+	}
+
+	gologging.InfoF("ShrutiApi: downloaded %s -> %s", track.ID, path)
+	return path, nil
+}
+
+func (s *ShrutiApiPlatform) downloadWithRitesh(
+	ctx context.Context,
+	youtubeURL string,
+	mediaType string,
+	track *state.Track,
+	ext string,
+) (string, error) {
+	safeQuery := url.QueryEscape(youtubeURL)
+	var endpoint string
+	if riteshAPIKey != "" {
+		endpoint = fmt.Sprintf(
+			"%s/downloads/%s/%s%s",
+			riteshBaseURL,
+			riteshAPIKey,
+			safeQuery,
+			ext,
+		)
+	} else {
+		endpoint = fmt.Sprintf(
+			"%s/downloads/stream?query=%s&dl_type=%s",
+			riteshBaseURL,
+			safeQuery,
+			mediaType,
+		)
+	}
+
+	gologging.DebugF("ShrutiApi: requesting fallback Ritesh download for %s (%s) via %s", track.ID, mediaType, endpoint)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return "", fmt.Errorf("shrutiapi: build ritesh request: %w", err)
+	}
+	req.Header.Set("User-Agent", shrutiUserAgent)
+	req.Header.Set("Accept", shrutiAccept)
+
+	resp, err := s.client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("shrutiapi: ritesh request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("shrutiapi: ritesh HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+	}
+
+	path := getPath(track, ext)
+	f, err := os.Create(path)
+	if err != nil {
+		return "", fmt.Errorf("shrutiapi: ritesh create file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(f, resp.Body); err != nil {
+		os.Remove(path)
+		return "", fmt.Errorf("shrutiapi: ritesh write file: %w", err)
+	}
+
+	if !fileExists(path) {
+		return "", errors.New("shrutiapi: ritesh empty file after download")
 	}
 
 	gologging.InfoF("ShrutiApi: downloaded %s -> %s", track.ID, path)
