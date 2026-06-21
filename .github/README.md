@@ -1,254 +1,395 @@
-﻿<h1 align="center">🎧 <b>ArcMusic</b></h1>
+<div align="center">
 
-<p align="center">
-  <i>A blazing-fast, reliable, and feature-packed Telegram bot for streaming music in group voice chats — built with Go.</i>
+<!-- ✦ REPLACE THIS with your own anime PNG hosted on catbox.moe or imgur ✦ -->
+<!-- Tip: use a transparent PNG of a cute anime girl with headphones! -->
+<!-- Example tool to host your PNG free → https://catbox.moe -->
+
+<img src="https://files.catbox.moe/b0it0d.jpg" width="100%" style="border-radius:18px;" alt="AnvuMusic Banner"/>
+
+<br/>
+
+# 𝓐𝓷𝓿𝓾𝓜𝓾𝓼𝓲𝓬
+
+<p>
+  <i>✦ A blazing-fast, anime-spirited Telegram music bot — powered by Go & pure love for music ✦</i>
 </p>
-<p align="center">
 
+<p>
   <a href="https://go.dev/">
-    <img src="https://img.shields.io/badge/Go-1.25-00ADD8?style=for-the-badge&logo=go&labelColor=000000&logoColor=white" alt="Go Version">
+    <img src="https://img.shields.io/badge/Go-1.25+-00ADD8?style=for-the-badge&logo=go&labelColor=0D0D1A&logoColor=white" alt="Go Version"/>
   </a>
-  <a href="https://github.com/tusar404/ArcMusic/releases/tag/v3.2.0">
-    <img src="https://img.shields.io/badge/Version-v3.2-FF9800?style=for-the-badge&logo=semver&labelColor=000000&logoColor=white" alt="Version">
+  <a href="https://github.com/Naman-Devio/AnvuMusic/blob/main/LICENSE">
+    <img src="https://img.shields.io/badge/License-GPLv3-FF6B9D?style=for-the-badge&logo=gnu&labelColor=0D0D1A&logoColor=white" alt="License"/>
   </a>
-  <a href="../LICENSE">
-    <img src="https://img.shields.io/badge/License-GPLv3-FF3860?style=for-the-badge&logo=gnu&labelColor=000000&logoColor=white" alt="License: GPLv3">
+  <a href="https://t.me/ECHOWAVESUPPORT">
+    <img src="https://img.shields.io/badge/Channel-@ECHOWAVESUPPORT-C3B1E1?style=for-the-badge&logo=telegram&labelColor=0D0D1A&logoColor=white" alt="Support Channel"/>
   </a>
-  <a href="https://github.com/tusar404/ArcMusic/stargazers">
-    <img src="https://img.shields.io/github/stars/tusar404/ArcMusic?style=for-the-badge&label=Stars&labelColor=000000&color=FFD700&logo=github&logoColor=white" alt="GitHub Stars">
+  <a href="https://t.me/eceqt">
+    <img src="https://img.shields.io/badge/Dev-@eceqt-FF9EC4?style=for-the-badge&logo=telegram&labelColor=0D0D1A&logoColor=white" alt="Developer"/>
   </a>
-  <a href="https://github.com/tusar404/ArcMusic/fork">
-    <img src="https://img.shields.io/github/forks/tusar404/ArcMusic?style=for-the-badge&label=Forks&labelColor=000000&color=00C853&logo=github&logoColor=white" alt="GitHub Forks">
-  </a>
-
 </p>
 
----
+<p>
+  <img src="https://img.shields.io/badge/MongoDB-Database-47A248?style=for-the-badge&logo=mongodb&labelColor=0D0D1A" alt="MongoDB"/>
+  <img src="https://img.shields.io/badge/FFmpeg-Audio_Engine-007808?style=for-the-badge&logo=ffmpeg&labelColor=0D0D1A" alt="FFmpeg"/>
+  <img src="https://img.shields.io/badge/ntgcalls-WebRTC-FF6B9D?style=for-the-badge&labelColor=0D0D1A" alt="ntgcalls"/>
+  <img src="https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&labelColor=0D0D1A" alt="Docker"/>
+</p>
 
-## 🚀 Quick Start
+<p>
+  <a href="#-quick-deploy">🚀 Deploy Now</a> ·
+  <a href="#-features">✨ Features</a> ·
+  <a href="#-commands">📜 Commands</a> ·
+  <a href="#-configuration">⚙️ Config</a> ·
+  <a href="https://t.me/ECHOWAVESUPPORT">💬 Support</a>
+</p>
 
-
-### ☁️ Deploy to Heroku (One-Click)
-
-Click the button below to deploy **ArcMusic** instantly on Heroku:
-
-<a href="https://heroku.com/deploy?template=https://github.com/tusar404/ArcMusic">
-  <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy to Heroku">
-</a>
-
----
-
-### Prerequisites
-- Go 1.25 or higher
-- MongoDB (Cloud or Local)
-- Telegram Bot Token (from [@BotFather](https://t.me/BotFather))
-- API ID & Hash (from [my.telegram.org](https://my.telegram.org))
-- Assistant Account Session String
-
-### Installation
-
-1. **Clone Repository**
-```bash
-git clone https://github.com/tusar404/ArcMusic.git
-cd ArcMusic
-```
-
-2. **Install Dependencies**
-```bash
-bash install.sh && go mod tidy
-```
-
-3. **Configure Environment**
-```bash
-cp sample.env .env
-# Edit .env with your credentials
-```
-
-4. **Get Required Credentials**
-- **Bot Token**: Message [@BotFather](https://t.me/BotFather), use `/newbot`
-- **API ID & Hash**: Visit [my.telegram.org](https://my.telegram.org)
-- **Session String**: Use [@StringFatherBot](https://t.me/StringFatherBot) or online generator
-- **MongoDB**: Free tier at [MongoDB Atlas](https://www.mongodb.com/cloud/atlas)
-
-5. **Start the Bot**
-```bash
-go run ./cmd/app
-```
+</div>
 
 ---
 
-## ⚙️ Configuration
-
-All configuration is managed through environment variables. For detailed configuration instructions, see:
-
-📖 **[Configuration Guide](../internal/config/README.md)**
-
-### Key Variables
-| Variable | Required | Purpose |
-|----------|----------|---------|
-| `API_ID` | ✅ | Telegram API ID |
-| `API_HASH` | ✅ | Telegram API Hash |
-| `TOKEN` | ✅ | Bot token from @BotFather |
-| `MONGO_DB_URI` | ✅ | MongoDB connection string |
-| `STRING_SESSIONS` | ✅ | Assistant account session strings |
-| `OWNER_ID` | ❌ | Your Telegram User ID |
-| `LOGGER_ID` | ❌ | Log channel ID |
-
-See **[Configuration Reference](../internal/config/README.md)** for complete list of variables with examples.
+<div align="center">
+  <img src="https://readme-typing-svg.demolab.com?font=Nunito&weight=700&size=22&pause=1000&color=FF6B9D&center=true&vCenter=true&width=600&lines=🎵+Stream+music+in+Telegram+voice+chats;⚡+Built+with+Go+for+ultra-low+latency;🌸+Spotify+%7C+YouTube+%7C+SoundCloud+%26+more;🎧+Smart+queue+%7C+Auth+system+%7C+RTMP;💖+Made+with+love+by+Team+Echo" alt="Typing SVG"/>
+</div>
 
 ---
 
-## 📚 Commands
+## ✨ Features
 
-### User Commands
-| Command | Description |
-|---------|-------------|
-| `/play <query>` | Play a song from YouTube or Telegram |
-| `/queue` | Show current queue |
-| `/position` | Show current track position |
-| `/help` | Show command help |
-| `/ping` | Check bot status |
+<table>
+<tr>
+<td width="50%">
 
-### Admin Commands
-| Command | Description |
-|---------|-------------|
-| `/pause [seconds]` | Pause for playback (optionally auto-resume) |
-| `/resume` | Resume paused track |
-| `/mute [seconds]` | Mute playback (optionally auto-unmute) |
-| `/unmute` | Unmute playback |
-| `/seek <seconds>` | Seek to specific position |
-| `/loop <count>` | Loop track N times |
-| `/shuffle` | Toggle shuffle mode |
-| `/speed <speed>` | Set playback speed (0.5-4.0x) |
-| `/skip` | Skip to next track |
-| `/fplay <query>` | Force play (skip queue) |
-| `/clear` | Clear entire queue |
-| `/remove <index>` | Remove track from queue |
-| `/move <from> <to>` | Move track in queue |
-| `/jump <position>` | Jump to position in current track |
-| `/replay` | Replay current track |
-| `/addauth <user>` | Grant user playback permission |
-| `/delauth <user>` | Revoke user playback permission |
-| `/authlist` | List authorized users |
-| `/reload` | Reload admin cache |
-| `/cplay` | Channel play mode |
+### 🎵 Music Playback
+- **Multi-platform streaming** — YouTube, Spotify, SoundCloud, Telegram files, direct URLs & HLS streams
+- **Priority-based fallback system** — Arc API → yt-dlp → always finds a way to play
+- **Speed control** — 0.5× to 4.0× playback speed, live
+- **Seek & position** — jump to any timestamp mid-track
+- **Loop & shuffle** — loop N times or shuffle the whole queue
+- **Force play** — instantly cut the queue and play now
 
-### Owner Commands
-| Command | Description |
-|---------|-------------|
-| `/addsudo <user>` | Add sudo user |
-| `/delsudo <user>` | Remove sudo user |
-| `/sudolist` | List all sudo users |
-| `/maintenance <on/off>` | Toggle maintenance mode |
-| `/broadcast <message>` | Broadcast to all chats |
-| `/stats` | Show bot statistics |
-| `/restart` | Restart bot |
+</td>
+<td width="50%">
+
+### 📋 Queue & Controls
+- **Smart queue management** — view, skip, remove, move, jump to any position
+- **Pause / Resume / Mute / Unmute** with optional auto-timeout timers
+- **Replay** current track from the beginning
+- **Channel play** (cplay) — stream into linked channels
+- **RTMP live stream** support
+- **Auto-leave** on inactivity to save resources
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+### 🔒 Admin & Auth System
+- **Per-chat authorized users** (up to 25) — grant non-admins play access
+- **Sudo users** — elevated global privileges
+- **Owner commands** — broadcast, maintenance mode, restart
+- **Admin cache reload** — instant refresh after promotions
+- **Leave-on-demote** — bot auto-exits if it loses admin
+
+</td>
+<td width="50%">
+
+### 📊 Monitoring & Tools
+- **Live ping** — latency (ms), uptime, RAM, CPU & disk usage
+- **Detailed stats** — Go runtime, GC, served chats/users
+- **Built-in speed test** — internet bandwidth check
+- **Broadcast** — send messages to all served chats/users
+- **Multi-language** — locale-based i18n system (YAML)
+- **Must-join** enforcement & thumbnail customization
+
+</td>
+</tr>
+</table>
 
 ---
 
 ## 🎼 Platform System
 
-YukkiMusic uses a **modular platform system** to support multiple music sources:
+> Tracks are resolved via a **priority-based fallback chain** — highest priority wins, lower ones catch failures.
 
-### Supported Platforms
-1. **Telegram** (Priority: 100) - Direct Telegram audio/video files
-2. **YouTube** (Priority: 90) - YouTube videos and playlists
-3. **Youtubify API** (Priority: 80) - Premium YouTube downloads
-4. **Arc API** (Priority: 75) - YouTube downloads via Arc API
-5. **YT-DLP** (Priority: 70) - Direct yt-dlp integration
-
-### How It Works
-- When you request a song, the bot checks each platform by **priority**
-- **First valid platform handles the request**
-- Automatic fallback if one method fails
-- Seamless track fetching and downloading
-
-📖 **[Platform System Guide](../internal/platforms/README.md)** - Learn how to add custom platforms
+| Priority | Platform | Type | Notes |
+|:---:|---|---|---|
+| 🥇 **100** | **Telegram** | Native | Direct audio/video files from Telegram |
+| 🥈 **95** | **Spotify** | Metadata | Resolves tracks, albums & playlists → downloads via YouTube |
+| 🥉 **90** | **YouTube** | Search + Meta | Global search, playlists, high-accuracy results |
+| ✦ **85** | **SoundCloud** | Native | Independent & indie music via yt-dlp |
+| ✦ **80** | **Arc API** | Downloader | Premium CDN-backed YouTube audio downloads |
+| ✦ **65** | **DirectStream** | Fallback | HLS/M3U8, MPEG-DASH, CDN `.mp3`/`.mp4` links |
+| ✦ **60** | **YT-DLP** | Universal | 1000+ sites — the final safety net |
 
 ---
 
-## 📖 Documentation
+## 📜 Commands
 
-- **[Configuration Guide](../internal/config/README.md)** - All environment variables explained
-- **[Platform System](../internal/platforms/README.md)** - How platforms work and add custom sources
-- **[Database Layer](../internal/database/README.md)** - MongoDB schemas, queries, and bot data management
-- **[Modules System](../internal/modules/README.md)** - Command handlers, permissions, and feature modules
+### 🌍 Public Commands
+
+| Command | Description |
+|---|---|
+| `/play <query \| url>` | 🎵 Play a song from YouTube, Spotify, or other platforms |
+| `/queue` | 📋 View the current queue |
+| `/position` | 📍 Show playback position in the current track |
+| `/ping` | 🏓 Check bot latency, uptime, CPU & RAM |
+| `/help` | 📖 Show help menu |
+
+### 🛠️ Admin Commands
+
+| Command | Description |
+|---|---|
+| `/fplay <query>` | ⚡ Force play — skip queue immediately |
+| `/pause [seconds]` | ⏸️ Pause playback (optional auto-resume timer) |
+| `/resume` | ▶️ Resume paused playback |
+| `/mute [seconds]` | 🔇 Mute (optional auto-unmute timer) |
+| `/unmute` | 🔊 Unmute playback |
+| `/seek <seconds>` | ⏩ Seek to a specific timestamp |
+| `/speed <0.5–4.0>` | 🐇 Set playback speed |
+| `/loop <count>` | 🔁 Loop current track N times |
+| `/shuffle` | 🔀 Toggle shuffle mode |
+| `/skip` | ⏭️ Skip to next track in queue |
+| `/stop` | ⏹️ Stop playback and clear queue |
+| `/clear` | 🗑️ Clear the entire queue |
+| `/remove <index>` | ❌ Remove a track from the queue |
+| `/move <from> <to>` | ↕️ Move a track to a new queue position |
+| `/jump <position>` | 🎯 Jump to a position in the current track |
+| `/replay` | 🔄 Replay the current track from beginning |
+| `/addauth <user>` | ✅ Grant a user play permission |
+| `/delauth <user>` | ❎ Revoke a user's play permission |
+| `/authlist` | 📃 List all authorized users in this chat |
+| `/reload` | 🔃 Reload admin cache |
+| `/cplay` | 📡 Channel play mode |
+| `/bug` | 🐛 Report a bug directly to the dev |
+
+### 👑 Owner / Sudo Commands
+
+| Command | Description |
+|---|---|
+| `/addsudo <user>` | ⚡ Add a sudo user |
+| `/delsudo <user>` | 🚫 Remove a sudo user |
+| `/sudolist` | 📃 List all sudo users |
+| `/maintenance <on/off>` | 🔧 Toggle maintenance mode |
+| `/broadcast <msg>` | 📣 Broadcast a message to all served chats |
+| `/stats` | 📊 Full system & bot statistics |
+| `/speedtest` | 🌐 Run a server speed test |
+| `/restart` | 🔁 Restart the bot |
+| `/eval <code>` | 🧑‍💻 Evaluate Go code (dev only) |
+
+---
+
+## ⚙️ Configuration
+
+All configuration is done via environment variables (`.env` file or host env).
+
+### 🔴 Required
+
+| Variable | Description |
+|---|---|
+| `API_ID` | Telegram API ID from [my.telegram.org](https://my.telegram.org) |
+| `API_HASH` | Telegram API Hash from [my.telegram.org](https://my.telegram.org) |
+| `TOKEN` | Bot token from [@BotFather](https://t.me/BotFather) |
+| `MONGO_DB_URI` | MongoDB connection URI |
+| `STRING_SESSIONS` | One or more assistant session strings (space/comma separated) |
+| `LOGGER_ID` | Chat ID where bot logs are sent |
+
+### 🟡 Optional
+
+| Variable | Default | Description |
+|---|---|---|
+| `OWNER_ID` | `0` | Your Telegram user ID |
+| `SPOTIFY_CLIENT_ID` | — | Spotify app client ID |
+| `SPOTIFY_CLIENT_SECRET` | — | Spotify app client secret |
+| `DEFAULT_LANG` | `en` | Default bot language |
+| `DURATION_LIMIT` | `3600` | Max track duration in seconds |
+| `QUEUE_LIMIT` | `10` | Max tracks per queue |
+| `MAX_AUTH_USERS` | `25` | Max authorized users per chat |
+| `LEAVE_ON_DEMOTED` | `false` | Leave chat if bot is demoted |
+| `SUPPORT_CHAT` | — | Your support group URL |
+| `SUPPORT_CHANNEL` | `https://t.me/ECHOWAVESUPPORT` | Your channel URL |
+| `COOKIES_LINK` | — | Space-separated batbin.me URLs for YT cookies |
+| `START_IMG_URL` | catbox image | Start message image URL |
+| `PING_IMG_URL` | catbox image | Ping message image URL |
+| `MUST_JOIN` | `ECHOWAVESUPPORT` | Required channel to use the bot |
+| `SET_CMDS` | `true` | Auto-set bot commands on startup |
+| `PORT` | `8000` | HTTP port (for health checks) |
+
+> 💡 **Tip:** `STRING_SESSIONS` supports multiple sessions separated by spaces or commas — the bot load-balances across them automatically!
+
+---
+
+## 🚀 Quick Deploy
+
+### ☁️ One-Click Heroku Deploy
+
+Click below to deploy **AnvuMusic** instantly on Heroku (no server needed!):
+
+<a href="https://heroku.com/deploy?template=https://github.com/Naman-Devio/AnvuMusic">
+  <img src="https://www.herokucdn.com/deploy/button.svg" alt="Deploy to Heroku" height="40"/>
+</a>
+
+---
+
+### 🐳 Docker
+
+```bash
+# Clone the repo
+git clone https://github.com/Naman-Devio/AnvuMusic.git
+cd AnvuMusic
+
+# Copy and fill in your environment variables
+cp sample.env .env
+nano .env
+
+# Build and run
+docker build -t anvumusic .
+docker run --env-file .env anvumusic
+```
+
+---
+
+### 🖥️ Manual (VPS / Local)
+
+**Prerequisites:** Go 1.25+, FFmpeg, yt-dlp, MongoDB, ntgcalls
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Naman-Devio/AnvuMusic.git
+cd AnvuMusic
+
+# 2. Run the automated installer (handles Go, FFmpeg, yt-dlp, ntgcalls)
+bash install.sh
+
+# 3. Copy and edit your environment file
+cp sample.env .env
+nano .env   # fill in your credentials
+
+# 4. Download Go dependencies
+go mod tidy
+
+# 5. Start the bot 🎶
+go run ./cmd/app
+```
+
+> 🎓 **Get your credentials:**
+> - **Bot Token** → [@BotFather](https://t.me/BotFather) → `/newbot`
+> - **API ID & Hash** → [my.telegram.org](https://my.telegram.org/apps)
+> - **Session String** → [STRING](https://t.me/dragonstringbot)
+> - **MongoDB URI** → [MongoDB Atlas](https://www.mongodb.com/cloud/atlas) (free tier)
+> - **Spotify Keys** → [developer.spotify.com](https://developer.spotify.com/dashboard)
+
 ---
 
 ## 🏗️ Project Structure
 
 ```
-ArcMusic/
-├── .github/
-│   └── README.md              # Main documentation (you are here)
-├── cmd/app/
-│   └── main.go                # Entry point
-│   └──...
-├── internal/
-│   ├── config/                # Configuration management
-│   │   ├── config.go
-│   │   └── README.md          # Detailed config guide
-│   ├── core/                  # Core bot logic
-│   │   ├── clients.go         # Bot & assistant initialization
-│   │   ├── room_state.go      # Playback state management
-│   │   ├── chat_state.go      # Chat & assistant state
-│   │   └── ...
-│   ├── database/              # MongoDB operations
-│   │   ├── bot_state.go
-│   │   ├── chat_settings.go
-│   │   └── ...
-│   ├── modules/               # Command handlers
-│   │   ├── play.go            # Play command
-│   │   ├── queue.go           # Queue management
-│   │   └── ...
-│   ├── platforms/             # Music sources
-│   │   ├── youtube.go         # YouTube integration
-│   │   ├── telegram.go        # Telegram media
-│   │   ├── ytdlp.go           # YT-DLP downloader
-│   │   └── ...
-│   ├── locales/               # Multi-language support
-│   │   ├── en.yml            # English
-│   │   └── ...
-│   ├── utils/                 # Utility functions
-│   ├── cookies/               # YouTube cookie files
-│   └── ...
-├── go.mod                     # Go module definition
-├── go.sum                     # Dependency checksums
+AnvuMusic/
+│
+├── 📁 cmd/app/
+│   └── main.go                  ← Entry point & boot sequence
+│
+├── 📁 internal/
+│   ├── 📁 config/               ← All env variables & validation
+│   ├── 📁 core/                 ← Bot clients, room state, queue engine
+│   │   ├── clients.go           ← Bot & assistant initialization
+│   │   ├── room_state.go        ← Playback state per chat
+│   │   ├── room_queue.go        ← Queue management engine
+│   │   └── buttons.go           ← Inline keyboard builders
+│   ├── 📁 modules/              ← Command handlers (one file per command)
+│   │   ├── play.go · queue.go · skip.go · pause.go · seek.go
+│   │   ├── auth.go · sudoers.go · broadcast.go · stats.go
+│   │   └── rtmp_stream.go · monitor.go · speedtest.go · eval.go
+│   ├── 📁 platforms/            ← Music source integrations
+│   │   ├── youtube.go · spotify.go · soundcloud.go
+│   │   ├── arcapi.go · ytdlp.go · directstream.go · telegram.go
+│   │   └── registry.go          ← Priority-based platform router
+│   ├── 📁 database/             ← MongoDB collections & queries
+│   ├── 📁 locales/              ← i18n YAML files (en.yml, ...)
+│   ├── 📁 utils/                ← Shared helpers & flood control
+│   └── 📁 cookies/              ← YouTube cookie rotation
+│
+├── 📁 ntgcalls/                 ← Go bindings for ntgcalls (WebRTC engine)
+├── 📁 ubot/                     ← Userbot/assistant voice call logic
+│
+├── Dockerfile · heroku.yml · Procfile · install.sh
+└── go.mod · go.sum
 ```
 
 ---
 
-## 🐛 Bug Reports & Features
+## 🎨 Anime Corner
 
-Found a bug? Have a feature request?
+> *"Even the loneliest night is less lonely with music playing."*
+> — AnvuMusic, probably 🌙
 
-- **Use `/bug` command** in the bot to report directly
-- **Join our [Support Chat](https://t.me/+t4FSZuy7t_VmOWE9)** for discussions
-- **Open an [Issue on GitHub](https://github.com/tusar404/ArcMusic/issues)**
+<!-- 
+  ✦ HOW TO ADD YOUR ANIME PNG ✦
+  
+  1. Find a cute anime girl with headphones (transparent PNG preferred!)
+     → Great free sources: https://www.pixiv.net  |  https://safebooru.org
+     → Or generate one with any AI image tool
+  
+  2. Upload it to https://catbox.moe (free, permanent hosting)
+  
+  3. Replace the img src at the very TOP of this README with your catbox.moe URL
+  
+  4. For a side-mascot effect, you can wrap sections in an HTML table like this:
+  
+  <table><tr>
+    <td><img src="YOUR_ANIME_PNG_URL" width="200"/></td>
+    <td> ... your content ... </td>
+  </tr></table>
+-->
+
+---
+
+## 🧰 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| **Language** | Go 1.25+ |
+| **Telegram MTProto** | [gogram](https://github.com/amarnathcjd/gogram) |
+| **Voice Calls / WebRTC** | [ntgcalls](https://github.com/pytgcalls/ntgcalls) (Go bindings) |
+| **Database** | MongoDB via `mongo-driver/v2` |
+| **Music Download** | yt-dlp + Arc API + SoundCloud |
+| **Spotify Metadata** | `zmb3/spotify` |
+| **Audio Processing** | FFmpeg |
+| **HTTP Client** | `resty.dev/v3` |
+| **System Monitoring** | `gopsutil/v3` |
+| **Config** | `.env` via `godotenv` + YAML locales |
+| **Logging** | `gologging` + Charmbracelet lipgloss |
 
 ---
 
 ## 🤝 Contributing
 
-Contributions are welcome! Here's how to help:
+Contributions are very welcome! 💖
 
-1. **Fork the repository**
-2. **Create a feature branch** (`git checkout -b feature/amazing-feature`)
-3. **Commit changes** (`git commit -m 'Add amazing feature'`)
-4. **Push to branch** (`git push origin feature/amazing-feature`)
-5. **Open a Pull Request**
+1. **Fork** the repository
+2. **Create your branch** — `git checkout -b feature/cool-new-thing`
+3. **Commit your changes** — `git commit -m 'Add cool new thing'`
+4. **Push to your branch** — `git push origin feature/cool-new-thing`
+5. **Open a Pull Request** 🎉
 
-### Adding a New Platform
-See **[Platform System Guide](../internal/platforms/README.md#-how-to-add-a-new-platform)** for step-by-step instructions.
+> Want to add a new music platform? See the [Platform System guide](./internal/platforms/README.md#-how-to-add-a-new-platform) — it's plug-and-play!
+
+---
+
+## 🐛 Bug Reports
+
+- Use `/bug` inside the bot to send a report directly to the dev team
+- Or join our **[Support Channel](https://t.me/ECHOWAVESUPPORT)** — we reply fast!
+- GitHub Issues are open too 🙏
 
 ---
 
 ## 📜 License
 
-This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](LICENSE) file for details.
+AnvuMusic is open-source under the **GNU General Public License v3.0**.
 
 ```
-ArcMusic — A Telegram bot that streams music into group voice chats
+AnvuMusic — A high-performance Telegram music bot built with Go
 Copyright (C) 2026 Team Echo
 
 This program is free software: you can redistribute it and/or modify
@@ -259,31 +400,23 @@ the Free Software Foundation, either version 3 of the License, or
 
 ---
 
-## 🙌 Credits
+## 💖 Credits & Support
 
-- **Maintainer**: [Tosu](https://github.com/tusar404)
-- **Contributors**: All amazing developers who contributed to this project
-- **Base Repo**: [YukkiMusic](https://github.com/TheTeamVivek/YukkiMusic)
-- **Libraries**: Built with [gogram](https://github.com/AmarnathCJD/gogram), [ntgcalls](https://github.com/pytgcalls/ntgcalls), and more
+<div align="center">
 
----
+| 👤 Role | 🔗 Link |
+|---|---|
+| 🧑‍💻 **Developer** | [@eceqt](https://t.me/eceqt) |
+| 📢 **Updates Channel** | [@ECHOWAVESUPPORT](https://t.me/ECHOWAVESUPPORT) |
+| 🏗️ **Core Library** | [gogram](https://github.com/amarnathcjd/gogram) by AmarnathCJD |
+| 🎙️ **Voice Engine** | [ntgcalls](https://github.com/pytgcalls/ntgcalls) by pytgcalls team |
 
-## 📞 Support
+<br/>
 
-- **Telegram Support Chat**: [@ArcChatz](https://t.me/+t4FSZuy7t_VmOWE9)
-- **Updates Channel**: [@ArcUpdates](https://t.me/ECHOWAVESUPPORT)
-- **GitHub Issues**: [Report bugs](https://github.com/tusar404/ArcMusic/issues)
+*If AnvuMusic brings joy to your server, please consider giving the repo a* ⭐ *— it means the world! 🌸*
 
----
+<br/>
 
-## ⚡ Performance Tips
+<img src="https://capsule-render.vercel.app/api?type=waving&color=gradient&customColorList=12,20,24&height=100&section=footer&text=AnvuMusic&fontSize=28&fontColor=ffffff&animation=fadeIn&fontAlignY=70" width="100%"/>
 
-1. **Use multiple assistant accounts** - Distributes load across accounts
-2. **Set appropriate limits** - Adjust `QUEUE_LIMIT` and `DURATION_LIMIT`
-3. **Enable auto-leave** - Removes bot from inactive chats automatically
-4. **Use MongoDB Atlas** - Better performance than local MongoDB
-5. **Set up logger** - Monitor errors and optimize accordingly
-
----
-
-**Happy Streaming! 🎶**
+</div>
