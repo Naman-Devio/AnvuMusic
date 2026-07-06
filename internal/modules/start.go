@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
  * Copyright (C) 2026 Team Echo
@@ -73,7 +73,7 @@ func buildStartCaptionFor(user *tg.UserObj, bot *tg.UserObj) string {
 			"❖ <b>ʀᴀᴍ ᴜsᴀɢᴇ :</b> <code>%s</code>"+
 			"</blockquote>\n"+
 			"●══════════════════●\n"+
-			"<blockquote>✦ <b>ᴘᴏᴡᴇʀᴇᴅ ʙʏ »</b> <a href=\""+config.SupportChannel+"\">EchoWave · Anvu</a></blockquote>\n"+
+			"<blockquote>✦ <b>ᴘᴏᴡᴇʀᴇᴅ ʙʏ »</b> <a href=\"https://t.me/ll_BLAZE_DRAGUN_ll\">⏤͟͞𝘿 𝙍 𝘼 𝙂 𝙊 𝙉 ⚡️</a></blockquote>\n"+
 			"●══════════════════●",
 		userMention, botMention,
 		uptime, storageStr, cpuStr, ramStr,
@@ -157,6 +157,20 @@ func startCB(cb *tg.CallbackQuery) error {
 	caption := buildStartCaptionFor(cb.Sender, cb.Client.Me()) + "\n\n" + F(cb.ChannelID(), "start_cb_panel")
 	sendOpt := &tg.SendOptions{
 		ReplyMarkup: core.GetStartMarkup(cb.ChannelID()),
+		NoForwards:  true,
+	}
+	if config.StartImage != "" {
+		sendOpt.Media = config.StartImage
+	}
+	cb.Edit(caption, sendOpt)
+	return tg.ErrEndGroup
+}
+
+func supportPanelCB(cb *tg.CallbackQuery) error {
+	cb.Answer("")
+	caption := buildStartCaptionFor(cb.Sender, cb.Client.Me()) + "\n\n" + F(cb.ChannelID(), "support_panel_text")
+	sendOpt := &tg.SendOptions{
+		ReplyMarkup: core.GetSupportMarkup(cb.ChannelID()),
 		NoForwards:  true,
 	}
 	if config.StartImage != "" {
