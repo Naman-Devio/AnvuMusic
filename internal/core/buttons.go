@@ -142,44 +142,38 @@ func GetGroupHelpKeyboard(chatID int64) *tg.ReplyInlineMarkup {
 
 func GetStartMarkup(chatID int64) tg.ReplyMarkup {
 	bot := "https://t.me/" + Bot.Me().Username
-	return tg.NewKeyboard().
-		AddRow(
-			tg.Button.URL(
-				F(chatID, "ADD_ME_BTN"),
-				bot+"?startgroup&admin=invite_users",
-			),
-			tg.Button.Data(
-				F(chatID, "START_HELP_BTN"),
-				"help_cb",
-			),
-		).
-		AddRow(
-			tg.Button.URL(
-				F(chatID, "UPDATES_BTN"),
-				config.SupportChannel,
-			),
-			tg.Button.URL(
-				F(chatID, "SUPPORT_BTN"),
-				config.SupportChat,
-			),
-		).
-		AddRow(
-			tg.Button.URL(
-				F(chatID, "SOURCE_BTN"),
-				config.SupportChannel,
-			),
-			tg.Button.URL(
-				F(chatID, "START_DOCS_BTN"),
-				bot+"?start=pm_help",
-			),
-		).
-		AddRow(
-			tg.Button.Data(
-				F(chatID, "START_REFRESH_BTN"),
-				"start",
-			),
-		).
-		Build()
+	kb := tg.NewKeyboard()
+
+	// Row 1: Add to group
+	kb.AddRow(
+		tg.Button.URL(F(chatID, "ADD_ME_BTN"), bot+"?startgroup&admin=invite_users"),
+	)
+
+	// Row 2: Channel, Support, Owner, Source, Language
+	row2 := []tg.InlineKeyboardButton{
+		tg.Button.URL(F(chatID, "UPDATES_BTN"), config.SupportChannel),
+		tg.Button.URL(F(chatID, "SUPPORT_BTN"), config.SupportChat),
+	}
+	if config.OwnerID != 0 {
+		row2 = append(row2, tg.Button.URL(F(chatID, "OWNER_BTN"), "tg://user?id="+utils.IntToStr(config.OwnerID)))
+	}
+	row2 = append(row2,
+		tg.Button.URL(F(chatID, "SOURCE_BTN"), config.SupportChannel),
+		tg.Button.Data(F(chatID, "LANGUAGE_BTN"), "lang"),
+	)
+	kb.AddRow(row2...)
+
+	// Row 3: Help
+	kb.AddRow(
+		tg.Button.Data(F(chatID, "HELP_BTN"), "help_cb"),
+	)
+
+	// Row 4: Close
+	kb.AddRow(
+		tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
+	)
+
+	return kb.Build()
 }
 
 func GetHelpKeyboard(chatID int64) *tg.ReplyInlineMarkup {
