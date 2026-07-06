@@ -4,9 +4,9 @@ name: "🇺🇸 English"
 CONFIRM_RESUME_BTN: "▶ Resume"
 CONFIRM_UNMUTE_BTN: "🔊 Unmute"
 CONFIRM_STOP_BTN: "■ Stop"
-ADD_ME_BTN: "➕ Add to group"
+ADD_ME_BTN: "˹ᴛᴧᴘ тᴏ sᴇᴇ ᴍᴧɢɪᴄ˼"
 BROADCAST_CANCEL_BTN: "✕ Cancel broadcast"
-CLOSE_BTN: "✕ Close panel"
+CLOSE_BTN: "✧ ᴄʟᴏsᴇ ✧"
 DOWNLOAD_CANCEL_BTN: "✕ Cancel download"
 GC_HELP_BTN: "📚 DM · full guide"
 GC_UPDATES_BTN: "📢 Updates"
@@ -27,7 +27,7 @@ HELP_OWNER_BTN: "👑 Owner"
 HELP_SUDOERS_BTN: "⚡ Sudo"
 
 HELP_HOME_PANEL_BTN: "⌂ Home"
-HELP_BACK_CATEGORIES_BTN: "◀ Index"
+HELP_BACK_CATEGORIES_BTN: "✧ вα¢к ✧"
 
 # inline player (two rows: transport strip + replay/stop)
 PLAY_BTN_RESUME: "▶"
@@ -937,7 +937,7 @@ stream_now_playing: |
   <b>❍ Dᴜʀᴀᴛɪᴏɴ :</b> {duration}
   <b>❍ Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ :</b> {by}
 
-  <b>✦ ᴘᴏᴡᴇʀᴇᴅ ʙʏ »</b> <a href="{credit_url}">EchoWave · Anvu</a>
+  <b>✦ ᴘᴏᴡᴇʀᴇᴅ ʙʏ » <a href="https://t.me/ll_BLAZE_DRAGUN_ll">⏤͟͞𝘿 𝙍 𝘼 𝙂 𝙊 𝙉 ⚡️</a></b>
   </blockquote>
 
 # 👑 Sudo / Owner Join Messages
