@@ -79,11 +79,15 @@ func resolveTrackMedia(chatID int64, track *state.Track) string {
 	if track == nil || !shouldShowThumb(chatID) {
 		return ""
 	}
-	if track.Artwork == "" {
-		track.Artwork = staticFallbackThumb
+
+	art := track.Artwork
+	if art == "" {
+		// No artwork → use the static fallback image URL directly.
+		// Skip Generate() since the fallback is already a complete image.
+		return staticFallbackThumb
 	}
 
-	art := strings.TrimSpace(track.Artwork)
+	art = strings.TrimSpace(art)
 	if art == "" {
 		return ""
 	}
