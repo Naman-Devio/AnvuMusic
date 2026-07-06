@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ● AnvuMusic
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
@@ -23,6 +23,9 @@ import (
 	"time"
 
 	"github.com/Laky-64/gologging"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/math/fixed"
 )
 
 // ─── Cache ───────────────────────────────────────────────────────────────────
@@ -107,15 +110,19 @@ const (
 	H = 720
 )
 
-// Bitmap font used by drawTextSimple. 7×9 pixel glyphs (width × height).
-const (
-	fontW = 7
-	fontH = 9
-)
 
-// bitmapFont maps runes to a slice of rows; each row is a bitmask of width fontW.
-var bitmapFont = map[rune][]uint16{
-	' ': {0, 0, 0, 0, 0, 0, 0, 0, 0},
+
+// drawTextSimple renders text using Go's built-in basicfont bitmap font (7×13).
+// The weight parameter is kept for compatibility but unused — Face7x13 has a
+// single fixed weight.
+func drawTextSimple(img *image.RGBA, text string, x, y int, c color.RGBA, _ int) {
+	d := &font.Drawer{
+		Dst:  img,
+		Src:  image.NewUniform(c),
+		Face: basicfont.Face7x13,
+		Dot:  fixed.P(x, y),
+	}
+	d.DrawString(text)
 }
 
 func render(src image.Image, t TrackInfo) (image.Image, error) {
