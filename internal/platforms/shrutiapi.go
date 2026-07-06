@@ -19,7 +19,6 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -136,7 +135,7 @@ func (s *ShrutiApiPlatform) CanSearch() bool { return false }
 
 func (s *ShrutiApiPlatform) Search(_ string, _ bool) ([]*state.Track, error) { return nil, nil }
 
-// Download races all available APIs in parallel and returns the first successful result.
+// Download tries each API sequentially with a 10s timeout per attempt.
 func (s *ShrutiApiPlatform) Download(
 	ctx context.Context,
 	track *state.Track,
@@ -157,84 +156,51 @@ func (s *ShrutiApiPlatform) Download(
 	youtubeURL := "https://www.youtube.com/watch?v=" + track.ID
 	encodedURL := url.QueryEscape(youtubeURL)
 
-	type apiResult struct {
-		path string
-		err  error
+	type apiAttempt struct {
 		name string
+		fn   func(context.Context) (string, error)
 	}
 
-	resultCh := make(chan apiResult, 7) // buffer for all API attempts
-	raceCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	var wg sync.WaitGroup
-
-	// Helper to launch an API download goroutine
-	launch := func(name string, fn func() (string, error)) {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			path, err := fn()
-			if err != nil {
-				if !errors.Is(err, context.Canceled) {
-					gologging.WarnF("ShrutiApi [%s] failed for %s: %v", name, track.ID, err)
-				}
-				resultCh <- apiResult{err: err, name: name}
-				return
-			}
-			resultCh <- apiResult{path: path, name: name}
-		}()
+	// Build ordered list of API attempts
+	attempts := []apiAttempt{
+		{"Shruti", func(c context.Context) (string, error) {
+			return s.downloadWithShruti(c, shrutiPrimaryBaseURL, encodedURL, mediaType, track, ext)
+		}},
+		{"ShrutiLegacy", func(c context.Context) (string, error) {
+			return s.downloadWithShruti(c, shrutiLegacyBaseURL, encodedURL, mediaType, track, ext)
+		}},
+		{"Ritesh", func(c context.Context) (string, error) {
+			return s.downloadWithRitesh(c, youtubeURL, mediaType, track, ext)
+		}},
+		{"XBitCode", func(c context.Context) (string, error) {
+			return s.downloadWithXBitCode(c, track.ID, mediaType, track, ext)
+		}},
+		{"ARC", func(c context.Context) (string, error) {
+			return s.downloadWithARC(c, encodedURL, track, ext)
+		}},
 	}
 
-	// 1. Shruti API (primary)
-	launch("Shruti", func() (string, error) {
-		return s.downloadWithShruti(raceCtx, shrutiPrimaryBaseURL, encodedURL, mediaType, track, ext)
-	})
-
-	// 2. Shruti API (legacy)
-	launch("ShrutiLegacy", func() (string, error) {
-		return s.downloadWithShruti(raceCtx, shrutiLegacyBaseURL, encodedURL, mediaType, track, ext)
-	})
-
-	// 3. Ritesh API
-	launch("Ritesh", func() (string, error) {
-		return s.downloadWithRitesh(raceCtx, youtubeURL, mediaType, track, ext)
-	})
-
-	// 4. OneGrab API
 	if onegrabAPIKey != "" {
-	launch("OneGrab", func() (string, error) {
-		return s.downloadWithOneGrab(raceCtx, encodedURL, mediaType, track, ext, statusMsg)
-	})
+		attempts = append(attempts, apiAttempt{"OneGrab", func(c context.Context) (string, error) {
+			return s.downloadWithOneGrab(c, encodedURL, mediaType, track, ext, statusMsg)
+		}})
 	}
 
-	// 5. XBitCode API
-	launch("XBitCode", func() (string, error) {
-		return s.downloadWithXBitCode(raceCtx, track.ID, mediaType, track, ext)
-	})
-
-	// 6. ARC Music API
-	launch("ARC", func() (string, error) {
-		return s.downloadWithARC(raceCtx, encodedURL, track, ext)
-	})
-
-	// Wait for all goroutines to finish, then close resultCh
-	go func() {
-		wg.Wait()
-		close(resultCh)
-	}()
-
-	// Collect results — return first success, or collect all errors
+	const apiTimeout = 10 * time.Second
 	var errs []string
-	for res := range resultCh {
-		if res.err == nil {
-			cancel() // cancel all other in-flight downloads
-			gologging.InfoF("ShrutiApi: downloaded %s via %s -> %s", track.ID, res.name, res.path)
-			return res.path, nil
+
+	for _, a := range attempts {
+		timeoutCtx, cancel := context.WithTimeout(ctx, apiTimeout)
+		path, err := a.fn(timeoutCtx)
+		cancel()
+
+		if err == nil {
+			gologging.InfoF("ShrutiApi: downloaded %s via %s -> %s", track.ID, a.name, path)
+			return path, nil
 		}
-		if !errors.Is(res.err, context.Canceled) {
-			errs = append(errs, res.name+": "+res.err.Error())
-		}
+
+		gologging.WarnF("ShrutiApi [%s] failed for %s: %v", a.name, track.ID, err)
+		errs = append(errs, a.name+": "+err.Error())
 	}
 
 	if len(errs) > 0 {
