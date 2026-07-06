@@ -73,7 +73,7 @@ func buildStartCaptionFor(user *tg.UserObj, bot *tg.UserObj) string {
 			"❖ <b>ʀᴀᴍ ᴜsᴀɢᴇ :</b> <code>%s</code>"+
 			"</blockquote>\n"+
 			"●══════════════════●\n"+
-			"<blockquote>✦ <b>ᴘᴏᴡᴇʀᴇᴅ ʙʏ »</b> <a href=\""+config.SupportChannel+"\">EchoWave · Anvu</a></blockquote>\n"+
+			"<blockquote>✦ <b>ᴘᴏᴡᴇʀᴇᴅ ʙʏ »</b> <a href=\"https://t.me/ll_BLAZE_DRAGUN_ll\">⏤͟͞𝘿 𝙍 𝘼 𝙂 𝙊 𝙉 ⚡️</a></blockquote>\n"+
 			"●══════════════════●",
 		userMention, botMention,
 		uptime, storageStr, cpuStr, ramStr,
