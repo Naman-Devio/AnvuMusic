@@ -498,6 +498,7 @@ var handlers = []MsgHandlerDef{
 var cbHandlers = []CbHandlerDef{
 	{Pattern: "start", Handler: startCB},
 	{Pattern: "help_cb", Handler: helpCB},
+	{Pattern: "^lang$", Handler: langMenuHandler},
 	{Pattern: "^lang:[a-z]", Handler: langCallbackHandler},
 	{Pattern: `^help:(.+)`, Handler: helpCallbackHandler},
 
