@@ -150,7 +150,7 @@ func GetStartMarkup(chatID int64) tg.ReplyMarkup {
 	)
 
 	// Row 2: Channel, Support, Owner, Source, Language
-	row2 := []tg.InlineKeyboardButton{
+	row2 := []tg.KeyboardButton{
 		tg.Button.URL(F(chatID, "UPDATES_BTN"), config.SupportChannel),
 		tg.Button.URL(F(chatID, "SUPPORT_BTN"), config.SupportChat),
 	}
