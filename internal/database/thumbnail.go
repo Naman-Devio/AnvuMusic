@@ -56,40 +56,51 @@ type TrackInfo struct {
 // If a cached copy exists it is returned immediately.
 // On any render failure it falls back to downloading the raw artwork.
 func Generate(t TrackInfo) (string, error) {
+	gologging.DebugF("[thumbgen] Generating thumbnail for %s (artwork: %.80s)", t.VideoID, t.Artwork)
+
 	cachePath := filepath.Join(cacheDir, fmt.Sprintf("%s_anvu.png", t.VideoID))
 	if _, err := os.Stat(cachePath); err == nil {
+		gologging.DebugF("[thumbgen] Cache hit: %s", cachePath)
 		return cachePath, nil
 	}
 
 	// Download raw artwork
 	rawPath := filepath.Join(cacheDir, fmt.Sprintf("raw_%s.jpg", t.VideoID))
 	if err := downloadFile(t.Artwork, rawPath); err != nil {
+		gologging.WarnF("[thumbgen] download failed: %v — falling back to raw URL", err)
 		return "", fmt.Errorf("failed to download artwork: %w", err)
 	}
 	defer os.Remove(rawPath)
+	gologging.DebugF("[thumbgen] Artwork downloaded to %s", rawPath)
 
 	src, err := loadImage(rawPath)
 	if err != nil {
-		return t.Artwork, nil // fallback to URL
+		gologging.WarnF("[thumbgen] loadImage failed: %v", err)
+		return "", fmt.Errorf("loadImage failed: %w", err)
 	}
+	gologging.DebugF("[thumbgen] Image loaded successfully (%dx%d)", src.Bounds().Dx(), src.Bounds().Dy())
 
 	out, err := render(src, t)
 	if err != nil {
 		gologging.ErrorF("[thumbgen] render failed: %v", err)
-		return t.Artwork, nil // fallback to URL
+		return "", fmt.Errorf("render failed: %w", err)
 	}
+	gologging.DebugF("[thumbgen] Render complete")
 
 	f, err := os.Create(cachePath)
 	if err != nil {
-		return t.Artwork, nil
+		gologging.ErrorF("[thumbgen] os.Create failed: %v", err)
+		return "", fmt.Errorf("os.Create failed: %w", err)
 	}
 	defer f.Close()
 
 	if err := png.Encode(f, out); err != nil {
 		os.Remove(cachePath)
-		return t.Artwork, nil
+		gologging.ErrorF("[thumbgen] png.Encode failed: %v", err)
+		return "", fmt.Errorf("png.Encode failed: %w", err)
 	}
 
+	gologging.InfoF("[thumbgen] Thumbnail saved: %s", cachePath)
 	return cachePath, nil
 }
 
