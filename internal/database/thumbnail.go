@@ -448,27 +448,7 @@ func drawCircle(img *image.RGBA, cx, cy, r int, c color.RGBA) {
 	}
 }
 
-// drawTextSimple renders ASCII text using a 7×9 bitmap font baked inline.
-// weight=2 doubles the pixel width for a bolder look.
-func drawTextSimple(img *image.RGBA, text string, x, y int, c color.RGBA, weight int) {
-	cx := x
-	for _, ch := range text {
-		bm, ok := bitmapFont[ch]
-		if !ok {
-			bm = bitmapFont[' ']
-		}
-		for row := 0; row < fontH; row++ {
-			for col := 0; col < fontW; col++ {
-				if bm[row]&(1<<uint(fontW-1-col)) != 0 {
-					for w := 0; w < weight; w++ {
-						blendPixel(img, cx+col*weight+w, y+row*weight, c)
-					}
-				}
-			}
-		}
-		cx += (fontW + 1) * weight
-	}
-}
+
 
 // blendPixel alpha-composites c over the existing pixel at (x, y).
 func blendPixel(img *image.RGBA, x, y int, c color.RGBA) {
