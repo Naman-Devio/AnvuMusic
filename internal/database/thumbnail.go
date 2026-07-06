@@ -25,6 +25,8 @@ import (
 	"github.com/Laky-64/gologging"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/font/gofont/goregular"
+	"golang.org/x/image/font/sfnt"
 	"golang.org/x/image/math/fixed"
 	"golang.org/x/image/webp"
 )
@@ -124,14 +126,40 @@ const (
 
 
 
-// drawTextSimple renders text using Go's built-in basicfont bitmap font (7×13).
-// The weight parameter is kept for compatibility but unused — Face7x13 has a
-// single fixed weight.
+// ─── TrueType Font (30px) ─────────────────────────────────────────────────────
+
+var (
+	thumbFontOnce sync.Once
+	thumbFont     font.Face
+)
+
+func getThumbFont() font.Face {
+	thumbFontOnce.Do(func() {
+		f, err := sfnt.Parse(goregular.TTF)
+		if err != nil {
+			gologging.ErrorF("[thumbgen] failed to parse TTF font: %v — falling back to basicfont", err)
+			thumbFont = basicfont.Face7x13
+			return
+		}
+		thumbFont, err = f.Face(&sfnt.Options{
+			Size: 30,
+			DPI:  72,
+		})
+		if err != nil {
+			gologging.ErrorF("[thumbgen] failed to create font face: %v — falling back to basicfont", err)
+			thumbFont = basicfont.Face7x13
+		}
+	})
+	return thumbFont
+}
+
+// drawTextSimple renders text using a 30pt TrueType font (Go Regular).
 func drawTextSimple(img *image.RGBA, text string, x, y int, c color.RGBA, _ int) {
+	face := getThumbFont()
 	d := &font.Drawer{
 		Dst:  img,
 		Src:  image.NewUniform(c),
-		Face: basicfont.Face7x13,
+		Face: face,
 		Dot:  fixed.P(x, y),
 	}
 	d.DrawString(text)
