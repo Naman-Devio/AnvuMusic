@@ -37,6 +37,9 @@ func langHandler(m *telegram.NewMessage) error {
 	}
 	kb.NewColumn(2, btns...)
 
+	// Close button row
+	kb.AddRow(telegram.Button.Data(F(chatID, "CLOSE_BTN"), "close"))
+
 	_, err = m.Reply(
 		F(chatID, "lang_select"),
 		&telegram.SendOptions{ReplyMarkup: kb.Build()},
@@ -65,6 +68,9 @@ func langMenuHandler(cb *telegram.CallbackQuery) error {
 		btns = append(btns, telegram.Button.Data(name, "lang:"+l))
 	}
 	kb.NewColumn(2, btns...)
+
+	// Close button row
+	kb.AddRow(telegram.Button.Data(F(chatID, "CLOSE_BTN"), "close"))
 
 	cb.Edit(
 		F(chatID, "lang_select"),
