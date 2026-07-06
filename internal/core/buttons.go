@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ● AnvuMusic
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
@@ -94,28 +94,35 @@ func GetPlayMarkup(chatID int64, r *RoomState, queued bool) tg.ReplyMarkup {
 		duration = track.Duration
 	}
 
-	progress := utils.GetProgressBar(r.Position(), duration)
-	progress = formatDuration(
-		r.Position(),
-	) + " " + progress + " " + formatDuration(
-		duration,
-	)
-
+	// Progress bar row (only when not queued)
 	if !queued {
+		progress := utils.GetProgressBar(r.Position(), duration)
+		progress = formatDuration(
+			r.Position(),
+		) + " " + progress + " " + formatDuration(
+			duration,
+		)
 		btn.AddRow(
 			tg.Button.Data(progress, "progress"),
 		)
 	}
+
+	// Row 1: Playback controls — Resume, Pause, Skip, Stop
 	btn.AddRow(
-		tg.Button.Data(F(chatID, "PLAY_BTN_RESUME"), prefix+"resume"),
-		tg.Button.Data(F(chatID, "PLAY_BTN_PAUSE"), prefix+"pause"),
-		tg.Button.Data(F(chatID, "PLAY_BTN_SKIP"), prefix+"skip"),
-	)
-	btn.AddRow(
-		tg.Button.Data(F(chatID, "PLAY_BTN_REPLAY"), "room:replay"),
-		tg.Button.Data(F(chatID, "PLAY_BTN_STOP"), prefix+"stop"),
+		tg.Button.Data("▷", prefix+"resume"),
+		tg.Button.Data("II", prefix+"pause"),
+		tg.Button.Data("‣‣I", prefix+"skip"),
+		tg.Button.Data("▢", prefix+"stop"),
 	)
 
+	// Row 2: Seek back, Replay, Seek forward
+	btn.AddRow(
+		tg.Button.Data("↩ 15s", prefix+"seekback_15"),
+		tg.Button.Data("⟳", prefix+"replay"),
+		tg.Button.Data("15s ↪", prefix+"seek_15"),
+	)
+
+	// Row 3: Close button
 	btn.AddRow(
 		tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
 	)
