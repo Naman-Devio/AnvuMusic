@@ -149,9 +149,8 @@ func GetStartMarkup(chatID int64) tg.ReplyMarkup {
 		tg.Button.URL(F(chatID, "ADD_ME_BTN"), bot+"?startgroup&admin=invite_users"),
 	)
 
-	// Row 2: Updates, Support (opens support panel), Language
+	// Row 2: Support (opens support panel), Language
 	kb.AddRow(
-		tg.Button.URL(F(chatID, "UPDATES_BTN"), config.SupportChannel),
 		tg.Button.Data(F(chatID, "SUPPORT_BTN"), "support_panel"),
 		tg.Button.Data(F(chatID, "LANGUAGE_BTN"), "lang"),
 	)
@@ -159,11 +158,6 @@ func GetStartMarkup(chatID int64) tg.ReplyMarkup {
 	// Row 3: Help
 	kb.AddRow(
 		tg.Button.Data(F(chatID, "HELP_BTN"), "help_cb"),
-	)
-
-	// Row 4: Close
-	kb.AddRow(
-		tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
 	)
 
 	return kb.Build()
