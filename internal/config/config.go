@@ -105,7 +105,7 @@ func loadConfig() {
 	DurationLimit = int(getInt64("DURATION_LIMIT", 3600)) // In seconds
 	LeaveOnDemoted = getBool("LEAVE_ON_DEMOTED", false)
 	QueueLimit = int(getInt64("QUEUE_LIMIT", 10))
-	SupportChat = getString("SUPPORT_CHAT", "https://t.me/+t4FSZuy7t_VmOWE9")
+	SupportChat = getString("SUPPORT_CHAT", "https://t.me/+cWCtXiDOgIxlZWQ1")
 	SupportChannel = getString("SUPPORT_CHANNEL", "https://t.me/ECHOWAVESUPPORT")
 	CookiesLink = getString("COOKIES_LINK", "")
 	SetCmds = getBool("SET_CMDS", true)
