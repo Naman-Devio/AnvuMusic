@@ -26,7 +26,7 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
 	"golang.org/x/image/font/gofont/goregular"
-	"golang.org/x/image/font/sfnt"
+	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 	"golang.org/x/image/webp"
 )
@@ -135,15 +135,16 @@ var (
 
 func getThumbFont() font.Face {
 	thumbFontOnce.Do(func() {
-		f, err := sfnt.Parse(goregular.TTF)
+		f, err := opentype.Parse(goregular.TTF)
 		if err != nil {
 			gologging.ErrorF("[thumbgen] failed to parse TTF font: %v — falling back to basicfont", err)
 			thumbFont = basicfont.Face7x13
 			return
 		}
-		thumbFont, err = f.Face(&sfnt.Options{
-			Size: 30,
-			DPI:  72,
+		thumbFont, err = opentype.NewFace(f, &opentype.FaceOptions{
+			Size:    30,
+			DPI:     72,
+			Hinting: font.HintingFull,
 		})
 		if err != nil {
 			gologging.ErrorF("[thumbgen] failed to create font face: %v — falling back to basicfont", err)
