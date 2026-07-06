@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
  * Copyright (C) 2026 Team Echo
@@ -44,6 +44,32 @@ func langHandler(m *telegram.NewMessage) error {
 	if err != nil {
 		return err
 	}
+	return telegram.ErrEndGroup
+}
+
+func langMenuHandler(cb *telegram.CallbackQuery) error {
+	chatID := cb.ChannelID()
+
+	lang, err := database.Language(chatID)
+	if err != nil {
+		lang = config.DefaultLang
+	}
+
+	kb := telegram.NewKeyboard()
+	var btns []telegram.KeyboardButton
+	for _, l := range locales.GetAvailableLanguages() {
+		name := locales.Get(l, "name", nil)
+		if l == lang {
+			name = "✔️ " + name
+		}
+		btns = append(btns, telegram.Button.Data(name, "lang:"+l))
+	}
+	kb.NewColumn(2, btns...)
+
+	cb.Edit(
+		F(chatID, "lang_select"),
+		&telegram.SendOptions{ReplyMarkup: kb.Build()},
+	)
 	return telegram.ErrEndGroup
 }
 
