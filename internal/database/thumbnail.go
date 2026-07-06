@@ -26,6 +26,7 @@ import (
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
 	"golang.org/x/image/math/fixed"
+	"golang.org/x/image/webp"
 )
 
 // ─── Cache ───────────────────────────────────────────────────────────────────
@@ -529,8 +530,12 @@ func loadImage(path string) (image.Image, error) {
 	}
 	defer f.Close()
 
-	// Try JPEG first, then PNG
+	// Try JPEG first, then WebP, then PNG
 	img, err := jpeg.Decode(f)
+	if err != nil {
+		f.Seek(0, 0)
+		img, err = webp.Decode(f)
+	}
 	if err != nil {
 		f.Seek(0, 0)
 		img, err = png.Decode(f)
