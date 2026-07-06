@@ -73,7 +73,7 @@ func buildStartCaptionFor(user *tg.UserObj, bot *tg.UserObj) string {
 			"❖ <b>ʀᴀᴍ ᴜsᴀɢᴇ :</b> <code>%s</code>"+
 			"</blockquote>\n"+
 			"●══════════════════●\n"+
-			"<blockquote>✦ <b>ᴘᴏᴡᴇʀᴇᴅ ʙʏ »</b> <a href=\"https://t.me/ll_BLAZE_DRAGUN_ll\">⏤͟͞𝘿 𝙍 𝘼 𝙂 𝙊 𝙉 ⚡️</a></blockquote>\n"+
+			"<blockquote>✦ <b>ᴘᴏᴡᴇʀᴇᴅ ʙʏ »</b> <a href=\""+config.SupportChannel+"\">EchoWave · Anvu</a></blockquote>\n"+
 			"●══════════════════●",
 		userMention, botMention,
 		uptime, storageStr, cpuStr, ramStr,
@@ -154,7 +154,7 @@ func startHandler(m *tg.NewMessage) error {
 
 func startCB(cb *tg.CallbackQuery) error {
 	cb.Answer("")
-	caption := buildStartCaptionFor(cb.Sender, cb.Client.Me()) + "\n\n" + F(cb.ChannelID(), "start_cb_panel")
+	caption := buildStartCaptionFor(cb.Sender, cb.Client.Me())
 	sendOpt := &tg.SendOptions{
 		ReplyMarkup: core.GetStartMarkup(cb.ChannelID()),
 		NoForwards:  true,
@@ -168,7 +168,7 @@ func startCB(cb *tg.CallbackQuery) error {
 
 func supportPanelCB(cb *tg.CallbackQuery) error {
 	cb.Answer("")
-	caption := buildStartCaptionFor(cb.Sender, cb.Client.Me()) + "\n\n" + F(cb.ChannelID(), "support_panel_text")
+	caption := buildStartCaptionFor(cb.Sender, cb.Client.Me())
 	sendOpt := &tg.SendOptions{
 		ReplyMarkup: core.GetSupportMarkup(cb.ChannelID()),
 		NoForwards:  true,
