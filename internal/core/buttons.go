@@ -176,11 +176,11 @@ func GetSupportMarkup(chatID int64) tg.ReplyMarkup {
 	if config.OwnerID != 0 {
 		kb.AddRow(
 			tg.Button.URL(F(chatID, "OWNER_BTN"), "https://t.me/eceqt"),
-			tg.Button.URL(F(chatID, "SOURCE_BTN"), "https://t.me/lelobhaisource"),
+			tg.Button.URL(F(chatID, "SOURCE_BTN"), "https://github.com/Naman-Devio/AnvuMusic/fork"),
 		)
 	} else {
 		kb.AddRow(
-			tg.Button.URL(F(chatID, "SOURCE_BTN"), "https://t.me/lelobhaisource"),
+			tg.Button.URL(F(chatID, "SOURCE_BTN"), "https://github.com/Naman-Devio/AnvuMusic/fork"),
 		)
 	}
 
