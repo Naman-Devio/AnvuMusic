@@ -923,6 +923,13 @@ start_cb_panel: |
   <b>Panel refreshed</b> — same hub, new timestamp. Pick a route below.
   </blockquote>
 
+support_panel_text: |
+  <blockquote>
+  <b>◎ Support Hub</b> — quick links to our community, updates, and more.
+  </blockquote>
+
+  <i>Tap a button below to navigate.</i>
+
 start_group: |
   <blockquote>
   <b>Online in this chat.</b>
