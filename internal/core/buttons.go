@@ -149,19 +149,12 @@ func GetStartMarkup(chatID int64) tg.ReplyMarkup {
 		tg.Button.URL(F(chatID, "ADD_ME_BTN"), bot+"?startgroup&admin=invite_users"),
 	)
 
-	// Row 2: Channel, Support, Owner, Source, Language
-	row2 := []tg.KeyboardButton{
+	// Row 2: Updates, Support (opens support panel), Language
+	kb.AddRow(
 		tg.Button.URL(F(chatID, "UPDATES_BTN"), config.SupportChannel),
-		tg.Button.URL(F(chatID, "SUPPORT_BTN"), config.SupportChat),
-	}
-	if config.OwnerID != 0 {
-		row2 = append(row2, tg.Button.URL(F(chatID, "OWNER_BTN"), "tg://user?id="+utils.IntToStr(config.OwnerID)))
-	}
-	row2 = append(row2,
-		tg.Button.URL(F(chatID, "SOURCE_BTN"), config.SupportChannel),
+		tg.Button.Data(F(chatID, "SUPPORT_BTN"), "support_panel"),
 		tg.Button.Data(F(chatID, "LANGUAGE_BTN"), "lang"),
 	)
-	kb.AddRow(row2...)
 
 	// Row 3: Help
 	kb.AddRow(
@@ -170,6 +163,36 @@ func GetStartMarkup(chatID int64) tg.ReplyMarkup {
 
 	// Row 4: Close
 	kb.AddRow(
+		tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
+	)
+
+	return kb.Build()
+}
+
+func GetSupportMarkup(chatID int64) tg.ReplyMarkup {
+	kb := tg.NewKeyboard()
+
+	// Row 1 (2×2 grid row 1): Support Group, Updates Channel
+	kb.AddRow(
+		tg.Button.URL(F(chatID, "SUPPORT_BTN"), config.SupportChat),
+		tg.Button.URL(F(chatID, "UPDATES_BTN"), config.SupportChannel),
+	)
+
+	// Row 2 (2×2 grid row 2): Owner, Source
+	if config.OwnerID != 0 {
+		kb.AddRow(
+			tg.Button.URL(F(chatID, "OWNER_BTN"), "tg://user?id="+utils.IntToStr(config.OwnerID)),
+			tg.Button.URL(F(chatID, "SOURCE_BTN"), config.SupportChannel),
+		)
+	} else {
+		kb.AddRow(
+			tg.Button.URL(F(chatID, "SOURCE_BTN"), config.SupportChannel),
+		)
+	}
+
+	// Row 3: Back to home & Close
+	kb.AddRow(
+		tg.Button.Data(F(chatID, "HELP_HOME_PANEL_BTN"), "start"),
 		tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
 	)
 
