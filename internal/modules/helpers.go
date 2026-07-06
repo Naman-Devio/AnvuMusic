@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
  * Copyright (C) 2026 Team Echo
@@ -72,9 +72,15 @@ func shouldShowThumb(chatID int64) bool {
 	return !noThumb
 }
 
+// staticFallbackThumb is used when a track has no artwork available.
+const staticFallbackThumb = "https://i.ibb.co/t6z06g1/photo-2026-07-06-16-43-28-7659456606119458816.jpg"
+
 func resolveTrackMedia(chatID int64, track *state.Track) string {
-	if track == nil || !shouldShowThumb(chatID) || track.Artwork == "" {
+	if track == nil || !shouldShowThumb(chatID) {
 		return ""
+	}
+	if track.Artwork == "" {
+		track.Artwork = staticFallbackThumb
 	}
 
 	art := strings.TrimSpace(track.Artwork)
