@@ -431,7 +431,7 @@ func (s *ShrutiApiPlatform) downloadWithOneGrab(
 
 	// If cdnurl is a Telegram message link, download via bot client (YukkiMusic approach)
 	if onegrabTelegramRegex.MatchString(cdnurl) {
-		gologging.InfoF("OneGrab: cdnurl is Telegram link, downloading via bot: %s", cdnurl[:80])
+		gologging.InfoF("OneGrab: cdnurl is Telegram link, downloading via bot: %s", cdnurl[:min(len(cdnurl), 80)])
 		pm := utils.GetProgress(statusMsg)
 		path, err := s.downloadFromTelegram(ctx, cdnurl, track, ext, pm)
 		if err != nil {
