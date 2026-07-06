@@ -7,626 +7,459 @@
 package modules
 
 import (
+	"errors"
 	"fmt"
-	"log"
+	"html"
+	"runtime/debug"
+	"strings"
+	"time"
 
 	"github.com/Laky-64/gologging"
-	"github.com/amarnathcjd/gogram/telegram"
+	tg "github.com/amarnathcjd/gogram/telegram"
 
 	"main/internal/config"
 	"main/internal/core"
+	state "main/internal/core/models"
 	"main/internal/database"
+	"main/internal/locales"
+	"main/internal/utils"
 )
 
-type MsgHandlerDef struct {
-	Pattern string
-	Handler telegram.MessageHandler
-	Filters []telegram.Filter
-}
+var downloadCancels = make(map[int64]func())
 
-type CbHandlerDef struct {
-	Pattern string
-	Handler telegram.CallbackHandler
-	Filters []telegram.Filter
-}
+func getEffectiveRoom(m *tg.NewMessage, cplay bool) (*core.RoomState, error) {
+	chatID := m.ChannelID()
 
-var handlers = []MsgHandlerDef{
-	{
-		Pattern: "restart",
-		Handler: handleRestart,
-		Filters: []telegram.Filter{ownerFilter, ignoreChannelFilter},
-	},
-
-	{
-		Pattern: "(addsudo|addsudoer|sudoadd)",
-		Handler: handleAddSudo,
-		Filters: []telegram.Filter{ownerFilter, ignoreChannelFilter},
-	},
-	{
-		Pattern: "(delsudo|delsudoer|sudodel|remsudo|rmsudo|sudorem|dropsudo|unsudo)",
-		Handler: handleDelSudo,
-		Filters: []telegram.Filter{ownerFilter, ignoreChannelFilter},
-	},
-	{
-		Pattern: "(sudoers|listsudo|sudolist)",
-		Handler: handleGetSudoers,
-		Filters: []telegram.Filter{ignoreChannelFilter},
-	},
-
-	{
-		Pattern: "(speedtest|spt)",
-		Handler: sptHandle,
-		Filters: []telegram.Filter{sudoOnlyFilter, ignoreChannelFilter},
-	},
-
-	{
-		Pattern: "(broadcast|gcast|bcast)",
-		Handler: broadcastHandler,
-		Filters: []telegram.Filter{ownerFilter, ignoreChannelFilter},
-	},
-
-	{
-		Pattern: "(ac|active|activevc|activevoice)",
-		Handler: activeHandler,
-		Filters: []telegram.Filter{sudoOnlyFilter, ignoreChannelFilter},
-	},
-	{
-		Pattern: "(maintenance|maint)",
-		Handler: handleMaintenance,
-		Filters: []telegram.Filter{ownerFilter, ignoreChannelFilter},
-	},
-	{
-		Pattern: "logger",
-		Handler: handleLogger,
-		Filters: []telegram.Filter{sudoOnlyFilter, ignoreChannelFilter},
-	},
-	{
-		Pattern: "autoleave",
-		Handler: autoLeaveHandler,
-		Filters: []telegram.Filter{sudoOnlyFilter, ignoreChannelFilter},
-	},
-	{
-		Pattern: "(log|logs)",
-		Handler: logsHandler,
-		Filters: []telegram.Filter{sudoOnlyFilter, ignoreChannelFilter},
-	},
-
-	{
-		Pattern: "help",
-		Handler: helpHandler,
-		Filters: []telegram.Filter{ignoreChannelFilter},
-	},
-	{
-		Pattern: "ping",
-		Handler: pingHandler,
-		Filters: []telegram.Filter{ignoreChannelFilter},
-	},
-	{
-		Pattern: "start",
-		Handler: startHandler,
-		Filters: []telegram.Filter{ignoreChannelFilter},
-	},
-	{
-		Pattern: "stats",
-		Handler: statsHandler,
-		Filters: []telegram.Filter{ignoreChannelFilter, sudoOnlyFilter},
-	},
-	{
-		Pattern: "bug",
-		Handler: bugHandler,
-		Filters: []telegram.Filter{ignoreChannelFilter},
-	},
-	{
-		Pattern: "(lang|language)",
-		Handler: langHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-
-	// SuperGroup & Admin Filters
-
-	{
-		Pattern: "stream",
-		Handler: streamHandler,
-		Filters: []telegram.Filter{superGroupFilter},
-	},
-	{
-		Pattern: "streamstop",
-		Handler: streamStopHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "streamstatus",
-		Handler: streamStatusHandler,
-		Filters: []telegram.Filter{superGroupFilter},
-	},
-	{Pattern: "(rtmp|setrtmp)", Handler: setRTMPHandler},
-	// play/cplay/vplay/fplay commands
-	{
-		Pattern: "play",
-		Handler: playHandler,
-		Filters: []telegram.Filter{superGroupFilter},
-	},
-	{
-		Pattern: "(fplay|playforce)",
-		Handler: fplayHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cplay",
-		Handler: cplayHandler,
-		Filters: []telegram.Filter{superGroupFilter},
-	},
-	{
-		Pattern: "(cfplay|fcplay|cplayforce)",
-		Handler: cfplayHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "vplay",
-		Handler: vplayHandler,
-		Filters: []telegram.Filter{superGroupFilter},
-	},
-	{
-		Pattern: "(fvplay|vfplay|vplayforce)",
-		Handler: fvplayHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "(vcplay|cvplay)",
-		Handler: vcplayHandler,
-		Filters: []telegram.Filter{superGroupFilter},
-	},
-	{
-		Pattern: "(fvcplay|fvcpay|vcplayforce)",
-		Handler: fvcplayHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-
-	{
-		Pattern: "(speed|setspeed|speedup)",
-		Handler: speedHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "skip",
-		Handler: skipHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "pause",
-		Handler: pauseHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "resume",
-		Handler: resumeHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "replay",
-		Handler: replayHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "mute",
-		Handler: muteHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "unmute",
-		Handler: unmuteHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "seek",
-		Handler: seekHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "seekback",
-		Handler: seekbackHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "jump",
-		Handler: jumpHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "position",
-		Handler: positionHandler,
-		Filters: []telegram.Filter{superGroupFilter},
-	},
-	{
-		Pattern: "queue",
-		Handler: queueHandler,
-		Filters: []telegram.Filter{superGroupFilter},
-	},
-	{
-		Pattern: "clear",
-		Handler: clearHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "remove",
-		Handler: removeHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "move",
-		Handler: moveHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "shuffle",
-		Handler: shuffleHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "(loop|setloop)",
-		Handler: loopHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "(end|stop)",
-		Handler: stopHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "reload",
-		Handler: reloadHandler,
-		Filters: []telegram.Filter{superGroupFilter},
-	},
-	{
-		Pattern: "restore",
-		Handler: restoreHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "addauth",
-		Handler: addAuthHandler,
-		Filters: []telegram.Filter{superGroupFilter, adminFilter},
-	},
-	{
-		Pattern: "delauth",
-		Handler: delAuthHandler,
-		Filters: []telegram.Filter{superGroupFilter, adminFilter},
-	},
-	{
-		Pattern: "authlist",
-		Handler: authListHandler,
-		Filters: []telegram.Filter{superGroupFilter},
-	},
-
-	// CPlay commands
-	{
-		Pattern: "(cplay|cvplay)",
-		Handler: cplayHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "(cfplay|fcplay|cforceplay)",
-		Handler: cfplayHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cpause",
-		Handler: cpauseHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cresume",
-		Handler: cresumeHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cmute",
-		Handler: cmuteHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cunmute",
-		Handler: cunmuteHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "(cstop|cend)",
-		Handler: cstopHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cqueue",
-		Handler: cqueueHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cskip",
-		Handler: cskipHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "(cloop|csetloop)",
-		Handler: cloopHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cseek",
-		Handler: cseekHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cseekback",
-		Handler: cseekbackHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cjump",
-		Handler: cjumpHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cremove",
-		Handler: cremoveHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cclear",
-		Handler: cclearHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cmove",
-		Handler: cmoveHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "channelplay",
-		Handler: channelPlayHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "(cspeed|csetspeed|cspeedup)",
-		Handler: cspeedHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "creplay",
-		Handler: creplayHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cposition",
-		Handler: cpositionHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "cshuffle",
-		Handler: cshuffleHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "creload",
-		Handler: creloadHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "crestore",
-		Handler: crestoreHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-
-	{
-		Pattern: "(nothumb|nothumbs)",
-		Handler: nothumbHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-
-	// ─── New Feature Handlers ───────────────────────────────
-
-	{
-		Pattern: "alive",
-		Handler: aliveHandler,
-		Filters: []telegram.Filter{ignoreChannelFilter},
-	},
-	{
-		Pattern: "id",
-		Handler: idHandler,
-		Filters: []telegram.Filter{ignoreChannelFilter},
-	},
-	{
-		Pattern: "afk",
-		Handler: afkHandler,
-		Filters: []telegram.Filter{ignoreChannelFilter},
-	},
-	{
-		Pattern: "truth",
-		Handler: truthHandler,
-		Filters: []telegram.Filter{ignoreChannelFilter},
-	},
-	{
-		Pattern: "dare",
-		Handler: dareHandler,
-		Filters: []telegram.Filter{ignoreChannelFilter},
-	},
-	{
-		Pattern: "paste",
-		Handler: pasteHandler,
-		Filters: []telegram.Filter{ignoreChannelFilter},
-	},
-	{
-		Pattern: "welcome",
-		Handler: welcomeHandler,
-		Filters: []telegram.Filter{superGroupFilter, adminFilter},
-	},
-	{
-		Pattern: "goodbye",
-		Handler: welcomeHandler,
-		Filters: []telegram.Filter{superGroupFilter, adminFilter},
-	},
-	{
-		Pattern: "filter",
-		Handler: filterAddHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "(filters|filterlist)",
-		Handler: filtersListHandler,
-		Filters: []telegram.Filter{superGroupFilter},
-	},
-	{
-		Pattern: "(stopfilter|rmfilter|delfilter)",
-		Handler: filterStopHandler,
-		Filters: []telegram.Filter{superGroupFilter, authFilter},
-	},
-	{
-		Pattern: "gban",
-		Handler: gbanHandler,
-		Filters: []telegram.Filter{sudoOnlyFilter, ignoreChannelFilter},
-	},
-	{
-		Pattern: "(ungban|gbanrem)",
-		Handler: ungbanHandler,
-		Filters: []telegram.Filter{sudoOnlyFilter, ignoreChannelFilter},
-	},
-	{
-		Pattern: "gbans",
-		Handler: gbansListHandler,
-		Filters: []telegram.Filter{sudoOnlyFilter, ignoreChannelFilter},
-	},
-}
-
-var cbHandlers = []CbHandlerDef{
-	{Pattern: "start", Handler: startCB},
-	{Pattern: "help_cb", Handler: helpCB},
-	{Pattern: "^lang:[a-z]", Handler: langCallbackHandler},
-	{Pattern: `^help:(.+)`, Handler: helpCallbackHandler},
-
-	{Pattern: "^close$", Handler: closeHandler},
-	{Pattern: "^cancel$", Handler: cancelHandler},
-	{Pattern: "^bcast_cancel$", Handler: broadcastCancelCB},
-
-	{Pattern: `^room:(\w+)$`, Handler: roomHandle},
-	{Pattern: "progress", Handler: emptyCBHandler},
-}
-
-func Init(bot *telegram.Client, assistants *core.AssistantManager) {
-	bot.UpdatesGetState()
-	assistants.ForEach(func(a *core.Assistant) {
-		a.Client.UpdatesGetState()
-	})
-
-	for _, h := range handlers {
-		bot.AddCommandHandler(h.Pattern, SafeMessageHandler(h.Handler), h.Filters...).
-			SetGroup(100)
-	}
-
-	for _, h := range cbHandlers {
-		bot.AddCallbackHandler(h.Pattern, SafeCallbackHandler(h.Handler), h.Filters...).
-			SetGroup(90)
-	}
-
-	bot.On("participant", handleParticipantUpdate).SetGroup(70)
-	bot.On("action", handleChatAction).SetGroup(70)
-
-	bot.On("message", handlePendingSearchSelection).SetGroup(55)
-
-	// Message watchers for AFK auto-unmark + keyword filters
-	bot.On("message", func(m *telegram.NewMessage) error {
-		if m.IsCommand() {
-			return nil
+	if cplay {
+		cplayID, err := database.LinkedChannel(chatID)
+		if err != nil || cplayID == 0 {
+			return nil, errors.New(F(chatID, "cplay_id_not_set"))
 		}
-		checkAFK(m)
-		checkFilters(m)
-		return nil
-	}).SetGroup(50)
-
-	bot.AddActionHandler(handleActions).SetGroup(60)
-
-	assistants.ForEach(func(a *core.Assistant) {
-		a.Ntg.OnStreamEnd(streamEndHandler)
-	})
-
-	go MonitorRooms()
-
-	if is, _ := database.AutoLeave(); is {
-		go startAutoLeave()
+		chatID = cplayID
 	}
-
-	if config.SetCmds && config.OwnerID != 0 {
-		go setBotCommands(bot)
-	}
-
-	cplayCommands := []string{
-		"/cfplay", "/vcplay", "/fvcplay",
-		"/cpause", "/cresume", "/cskip", "/cstop",
-		"/cmute", "/cunmute", "/cseek", "/cseekback",
-		"/cjump", "/cremove", "/cclear", "/cmove",
-		"/cspeed", "/creplay", "/cposition", "/cshuffle",
-		"/cloop", "/cqueue", "/creload",
-		"/crestore",
-	}
-
-	for _, cmd := range cplayCommands {
-		baseCmd := "/" + cmd[2:] // Remove 'c' prefix
-		if baseHelp, exists := helpTexts[baseCmd]; exists {
-			helpTexts[cmd] = fmt.Sprintf(`<i>Channel play variant of %s</i>
-
-<b>⚙️ Requires:</b>
-First configure channel using: <code>/channelplay --set [channel_id]</code>
-
-%s
-
-<b>💡 Note:</b>
-This command affects the linked channel's voice chat, not the current group.`, baseCmd, baseHelp)
-		}
-	}
-}
-
-func setBotCommands(bot *telegram.Client) {
-	// Set commands for normal users in private chats
-	if _, err := bot.BotsSetBotCommands(&telegram.BotCommandScopeUsers{}, "", AllCommands.PrivateUserCommands); err != nil {
-		gologging.Error("Failed to set PrivateUserCommands " + err.Error())
-	}
-
-	// Set commands for normal users in group chats
-	if _, err := bot.BotsSetBotCommands(&telegram.BotCommandScopeChats{}, "", AllCommands.GroupUserCommands); err != nil {
-		gologging.Error("Failed to set GroupUserCommands " + err.Error())
-	}
-
-	// Set commands for chat admins
-	if _, err := bot.BotsSetBotCommands(
-		&telegram.BotCommandScopeChatAdmins{},
-		"",
-		append(AllCommands.GroupUserCommands, AllCommands.GroupAdminCommands...),
-	); err != nil {
-		gologging.Error("Failed to set GroupAdminCommands " + err.Error())
-	}
-
-	// Set commands for sudo users in their private chat
-	sudoers, err := database.Sudoers()
+	ass, err := core.Assistants.ForChat(chatID)
 	if err != nil {
-		log.Printf("Failed to get sudoers for setting commands: %v", err)
-	} else {
-		sudoCommands := append(AllCommands.PrivateUserCommands, AllCommands.PrivateSudoCommands...)
-		for _, sudoer := range sudoers {
-			peer, err := bot.ResolvePeer(sudoer)
-			if err != nil {
-				continue
-			}
-			if _, err := bot.BotsSetBotCommands(&telegram.BotCommandScopePeer{Peer: peer}, "", sudoCommands); err != nil {
-				gologging.Error("Failed to set PrivateSudoCommands " + err.Error())
-			}
-		}
+		return nil, fmt.Errorf("failed to get assistant for you chat: %w", err)
+	}
+	r, _ := core.GetRoom(chatID, ass, true)
+
+	if cplay {
+		r.SetChannelPlayID(m.ChannelID())
+	}
+	return r, nil
+}
+
+func isMaintenanceBlocked(userID int64) bool {
+	isMaint, _ := database.IsMaintenanceEnabled()
+	if !isMaint {
+		return false
+	}
+	if userID == config.OwnerID {
+		return false
+	}
+	ok, _ := database.IsSudo(userID)
+	return !ok
+}
+
+func shouldShowThumb(chatID int64) bool {
+	noThumb, err := database.ThumbnailsDisabled(chatID)
+	if err != nil {
+		// On error, default to showing thumbnails
+		return true
+	}
+	// ThumbnailsDisabled = true means DON'T show thumb
+	// So we return the inverse
+	return !noThumb
+}
+
+// staticFallbackThumb is used when a track has no artwork available.
+const staticFallbackThumb = "https://i.ibb.co/t6z06g1/photo-2026-07-06-16-43-28-7659456606119458816.jpg"
+
+func resolveTrackMedia(chatID int64, track *state.Track) string {
+	if track == nil || !shouldShowThumb(chatID) {
+		return ""
 	}
 
-	ownerPeer, err := bot.ResolvePeer(config.OwnerID)
+	art := track.Artwork
+	if art == "" {
+		// No artwork → use the static fallback image URL directly.
+		// Skip Generate() since the fallback is already a complete image.
+		return staticFallbackThumb
+	}
+
+	art = strings.TrimSpace(art)
+	if art == "" {
+		return ""
+	}
+
+	if strings.HasPrefix(art, "/") ||
+		strings.HasPrefix(art, "./") ||
+		strings.HasPrefix(art, "../") ||
+		strings.HasPrefix(art, "cache/") {
+		return art
+	}
+
+	if strings.HasPrefix(art, "http://") || strings.HasPrefix(art, "https://") {
+		generated, err := database.Generate(database.TrackInfo{
+			VideoID:  track.ID,
+			Title:    utils.ShortTitle(track.Title, 28),
+			Artist:   "AnvuMusic",
+			Duration: formatDuration(track.Duration),
+			Views:    "N/A",
+			Artwork:  art,
+		})
+		if err == nil && generated != "" {
+			track.Artwork = generated
+			return generated
+		}
+		track.Artwork = art
+		return utils.CleanURL(art)
+	}
+
+	return art
+}
+
+func F(chatID int64, key string, values ...locales.Arg) string {
+	lang, err := database.Language(chatID)
 	if err != nil {
-		gologging.Error("Failed to resolve owner peer for commands: " + err.Error())
+		gologging.ErrorF("Failed to get language for %d: %v", chatID, err)
+		lang = config.DefaultLang
+	}
+	return FWithLang(lang, key, values...)
+}
+
+func FWithLang(lang, key string, values ...locales.Arg) string {
+	var val locales.Arg
+	if len(values) > 0 {
+		val = values[0]
+	}
+	return locales.Get(lang, key, val)
+}
+
+func isLoggerEnabled() bool {
+	l, err := database.IsLoggerEnabled()
+	if err != nil {
+		gologging.ErrorF("Failed to check if logger is enabled: %v", err)
+		return false
+	}
+	return l
+}
+
+func sendPlayLogs(m *tg.NewMessage, track *state.Track, queued bool) {
+	if config.LoggerID == 0 || config.LoggerID == m.ChatID() ||
+		config.LoggerID == m.ChannelID() {
 		return
 	}
-	ownerCommands := append(AllCommands.PrivateUserCommands, AllCommands.PrivateSudoCommands...)
-	ownerCommands = append(ownerCommands, AllCommands.PrivateOwnerCommands...)
-	if _, err := bot.BotsSetBotCommands(&telegram.BotCommandScopePeer{Peer: ownerPeer}, "", ownerCommands); err != nil {
-		gologging.Error("Failed to set PrivateOwnerCommands " + err.Error())
+
+	if is, err := database.IsLoggerEnabled(); err != nil {
+		gologging.Error("Failed to get IsLoggerEnabled: " + err.Error())
+		return
+	} else if !is {
+		return
 	}
+
+	var (
+		sb  strings.Builder
+		err error
+	)
+
+	chatID := m.ChannelID()
+
+	header := F(chatID, "logger_playback_started")
+	if queued {
+		header = F(chatID, "logger_playback_queued")
+	}
+
+	// Header
+	sb.WriteString("🎵 ")
+	if m.Channel.Username != "" {
+		fmt.Fprintf(&sb, "<b><a href=\"%s\">%s</a></b>\n\n", m.Link(), header)
+	} else {
+		fmt.Fprintf(&sb, "<b><u>%s</u></b>\n\n", header)
+	}
+
+	// Track
+	fmt.Fprintf(&sb,
+		"<b>%s</b> <a href=\"%s\">%s</a>\n",
+		F(chatID, "logger_track"),
+		track.URL,
+		utils.ShortTitle(track.Title),
+	)
+
+	// Source
+	fmt.Fprintf(&sb,
+		"<b>%s</b> %s\n",
+		F(chatID, "logger_source"),
+		string(track.Source),
+	)
+
+	// Group
+	fmt.Fprintf(&sb, "<b>%s</b> ", F(chatID, "logger_group"))
+	if m.Channel.Username != "" {
+		fmt.Fprintf(&sb, "@%s", m.Channel.Username)
+	} else {
+		sb.WriteString(m.Channel.Title)
+	}
+	fmt.Fprintf(&sb, " (%d)\n", m.ChannelID())
+
+	// Requested by
+	fmt.Fprintf(&sb, "<b>%s</b> ", F(chatID, "logger_requested_by"))
+	if m.Sender.Username != "" {
+		fmt.Fprintf(&sb, "@%s", m.Sender.Username)
+	} else {
+		sb.WriteString(utils.MentionHTML(m.Sender))
+	}
+	fmt.Fprintf(&sb, " (<code>%d</code>)\n", m.Sender.ID)
+
+	// Timestamp
+	fmt.Fprintf(&sb, "<b>%s</b> %s",
+		F(chatID, "logger_timestamp"),
+		time.Now().Format("2006-01-02 15:04:05"),
+	)
+
+	// Sending (Text Only)
+	_, err = core.Bot.SendMessage(config.LoggerID, sb.String(), &tg.SendOptions{ParseMode: "HTML", LinkPreview: false})
+
+	if err != nil {
+		gologging.Error("Failed to send logger msg: " + err.Error())
+	}
+}
+
+func SafeCallbackHandler(
+	handler func(*tg.CallbackQuery) error,
+) func(*tg.CallbackQuery) error {
+	return func(cb *tg.CallbackQuery) (err error) {
+		if isMaint, _ := database.IsMaintenanceEnabled(); isMaint {
+			isOwner := cb.SenderID == config.OwnerID
+			isSudo, _ := database.IsSudo(cb.SenderID)
+			if !isOwner && !isSudo {
+				cb.Answer(
+					F(cb.ChannelID(), "maint", locales.Arg{"reason": ""}),
+					&tg.CallbackOptions{Alert: true},
+				)
+				return tg.ErrEndGroup
+			}
+		}
+
+		defer func() {
+			if r := recover(); r != nil {
+				handlePanic(r, cb, true)
+				err = tg.ErrEndGroup
+			}
+		}()
+
+		err = handler(cb)
+		if err != nil && !errors.Is(err, tg.ErrEndGroup) {
+			handlePanic(err, cb, false)
+		}
+		return err
+	}
+}
+
+func SafeMessageHandler(
+	handler func(*tg.NewMessage) error,
+) func(*tg.NewMessage) error {
+	return func(m *tg.NewMessage) (err error) {
+		gologging.InfoF(
+			"Handling message from %d in chat %d",
+			m.SenderID(),
+			m.ChannelID(),
+		)
+
+		if isMaint, _ := database.IsMaintenanceEnabled(); isMaint {
+			gologging.Debug("Maintenance mode active")
+			isOwner := m.SenderID() == config.OwnerID
+			isSudo, _ := database.IsSudo(m.SenderID())
+
+			if !isOwner && !isSudo {
+				if m.ChatType() == tg.EntityUser ||
+					strings.HasSuffix(m.GetCommand(), m.Client.Me().Username) {
+					reason, _ := database.MaintenanceReason()
+					msg := F(m.ChannelID(), "maint", locales.Arg{
+						"reason": F(
+							m.ChannelID(),
+							"maint_reason",
+							locales.Arg{"reason": reason},
+						),
+					})
+					m.Reply(msg)
+					gologging.InfoF(
+						"Sent maintenance notice to %d",
+						m.SenderID(),
+					)
+				}
+				return tg.ErrEndGroup
+			}
+		}
+
+		defer func() {
+			if r := recover(); r != nil {
+				gologging.ErrorF("Recovered from panic: %v", r)
+				handlePanic(r, m, true)
+				err = fmt.Errorf("internal panic occurred")
+			}
+		}()
+
+		cmd := getCommand(m)
+		if checkForHelpFlag(m) {
+			gologging.DebugF("Help flag detected for command %s", cmd)
+			err = showHelpFor(m, cmd)
+		} else {
+			gologging.DebugF("Executing handler for command %s", cmd)
+			err = handler(m)
+		}
+
+		if err != nil {
+			if errors.Is(err, tg.ErrEndGroup) {
+				gologging.Debug("Handler exited early (ErrEndGroup)")
+				return err
+			}
+			gologging.ErrorF("Handler error: %v", err)
+			handlePanic(err, m, false)
+		} else {
+			gologging.InfoF("Handler completed successfully for command %s", cmd)
+		}
+
+		return err
+	}
+}
+
+func handlePanic(r, ctx interface{}, isPanic bool) {
+	stack := html.EscapeString(string(debug.Stack()))
+
+	var userMention, handlerType, chatInfo, messageInfo, errorMessage string
+	var client *tg.Client
+
+	switch c := ctx.(type) {
+	case *tg.NewMessage:
+		userMention = utils.MentionHTML(c.Sender)
+		handlerType = "message"
+		chatInfo = "ChatID: " + utils.IntToStr(c.ChannelID())
+		messageInfo = "Message: " + html.EscapeString(c.Text()) + "\nLink: " + c.Link()
+		errorMessage = html.EscapeString(fmt.Sprint(r))
+		client = c.Client
+
+	case *tg.CallbackQuery:
+		userMention = utils.MentionHTML(c.Sender)
+		handlerType = "callback"
+		chatInfo = "ChatID: " + utils.IntToStr(c.ChatID)
+		messageInfo = "Data: " + html.EscapeString(c.DataString())
+		errorMessage = html.EscapeString(fmt.Sprint(r))
+		client = c.Client
+	}
+
+	logMsg := "🚨 Error in %s handler:\nFrom: %s\n%s\n%s\nError: `%v`"
+	shortMsg := "<b>Error in %s handler</b>\n<b>From:</b> %s\n%s\n%s\n<b>Error:</b>\n<code>%s</code>"
+
+	if isPanic {
+		logMsg = "⚠️ Panic recovered in %s handler:\nFrom: %s\n%s\n%s\nError: `%v`\nStack:\n%s"
+		shortMsg = "<b>⚠️ Panic in %s handler</b>\n<b>From:</b> %s\n%s\n%s\n<b>Error:</b>\n<code>%s</code>\n<pre>%s</pre>"
+	}
+
+	if isPanic {
+		gologging.ErrorF(
+			logMsg,
+			handlerType,
+			userMention,
+			chatInfo,
+			messageInfo,
+			r,
+			stack,
+		)
+	} else {
+		gologging.ErrorF(logMsg, handlerType, userMention, chatInfo, messageInfo, r)
+	}
+
+	if config.LoggerID != 0 && client != nil {
+		var short string
+		if isPanic {
+			short = fmt.Sprintf(
+				shortMsg,
+				handlerType,
+				userMention,
+				chatInfo,
+				messageInfo,
+				errorMessage,
+				stack,
+			)
+		} else {
+			short = fmt.Sprintf(shortMsg, handlerType, userMention, chatInfo, messageInfo, errorMessage)
+		}
+
+		gologging.Error(short)
+		if _, sendErr := client.SendMessage(config.LoggerID, short, &tg.SendOptions{ParseMode: "HTML"}); sendErr != nil {
+			gologging.ErrorF(
+				"Failed to send panic message to log chat: %v",
+				sendErr,
+			)
+		}
+	}
+}
+
+func warnAndLeave(client *tg.Client, chatID int64) {
+	text := F(chatID, "supergroup_needed", locales.Arg{"chat_id": chatID})
+	_, err := client.SendMessage(
+		chatID,
+		text,
+		&tg.SendOptions{
+			ReplyMarkup: core.AddMeMarkup(chatID),
+			LinkPreview: false,
+		},
+	)
+	if err != nil {
+		gologging.ErrorF(
+			"Failed to send supergroup conversion message to chat %d: %v",
+			chatID,
+			err,
+		)
+		return
+	}
+
+	go func() {
+		time.Sleep(1 * time.Second)
+		if err := client.LeaveChannel(chatID); err != nil {
+			gologging.ErrorF(
+				"Failed to leave non-supergroup chatID=%d: %v",
+				chatID,
+				err,
+			)
+		}
+		core.Assistants.WithAssistant(
+			chatID,
+			func(ass *core.Assistant) { ass.Client.LeaveChannel(chatID) },
+		)
+	}()
+}
+
+func formatDuration(sec int) string {
+	if sec < 0 {
+		sec = 0
+	}
+
+	const (
+		day  = 86400
+		hour = 3600
+		min  = 60
+	)
+
+	if sec < min {
+		return fmt.Sprintf("%ds", sec)
+	}
+	if sec < hour {
+		return fmt.Sprintf("%dm %ds", sec/min, sec%min)
+	}
+	if sec < day {
+		return fmt.Sprintf("%dh %dm", sec/hour, (sec%hour)/min)
+	}
+
+	return fmt.Sprintf(
+		"%dd %dh",
+		sec/day,
+		(sec%day)/hour,
+	)
+}
+
+func getCommand(m *tg.NewMessage) string {
+	cmd, _, _ := strings.Cut(m.GetCommand(), "@")
+	return cmd
 }
