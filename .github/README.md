@@ -4,7 +4,7 @@
 <!-- Tip: use a transparent PNG of a cute anime girl with headphones! -->
 <!-- Example tool to host your PNG free → https://catbox.moe -->
 
-<img src="https://i.ibb.co/0yph13mt/photo-2026-06-21-18-22-19-7653915802706780160.jpg" width="100%" style="border-radius:18px;" alt="AnvuMusic Banner"/>
+<img src="https://i.ibb.co/t6z06g1/photo-2026-07-06-16-43-28-7659456606119458816.jpg" width="100%" style="border-radius:18px;" alt="AnvuMusic Banner"/>
 
 <br/>
 
