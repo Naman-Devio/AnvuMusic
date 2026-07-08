@@ -62,7 +62,7 @@ var (
 
 	// ARC Music API
 	arcMusicBaseURL = arcMusicDefaultBaseURL
-	arcMusicAPIKey  = "ARCe00f3f51934c7b759b455b"
+	arcMusicAPIKey  = "ARCb999dfcc2f28c74b6a905f"
 )
 
 type ShrutiApiPlatform struct {
@@ -161,30 +161,32 @@ func (s *ShrutiApiPlatform) Download(
 		fn   func(context.Context) (string, error)
 	}
 
-	// Build ordered list of API attempts
-	attempts := []apiAttempt{
-		{"Shruti", func(c context.Context) (string, error) {
-			return s.downloadWithShruti(c, shrutiPrimaryBaseURL, encodedURL, mediaType, track, ext)
-		}},
-		{"ShrutiLegacy", func(c context.Context) (string, error) {
-			return s.downloadWithShruti(c, shrutiLegacyBaseURL, encodedURL, mediaType, track, ext)
-		}},
-		{"Ritesh", func(c context.Context) (string, error) {
-			return s.downloadWithRitesh(c, youtubeURL, mediaType, track, ext)
-		}},
-		{"XBitCode", func(c context.Context) (string, error) {
-			return s.downloadWithXBitCode(c, track.ID, mediaType, track, ext)
-		}},
-		{"ARC", func(c context.Context) (string, error) {
-			return s.downloadWithARC(c, encodedURL, track, ext)
-		}},
-	}
+	// Build ordered list of API attempts — OneGrab first (fastest/most reliable)
+	var attempts []apiAttempt
 
 	if onegrabAPIKey != "" {
 		attempts = append(attempts, apiAttempt{"OneGrab", func(c context.Context) (string, error) {
 			return s.downloadWithOneGrab(c, encodedURL, mediaType, track, ext, statusMsg)
 		}})
 	}
+
+	attempts = append(attempts,
+		apiAttempt{"Shruti", func(c context.Context) (string, error) {
+			return s.downloadWithShruti(c, shrutiPrimaryBaseURL, encodedURL, mediaType, track, ext)
+		}},
+		apiAttempt{"ShrutiLegacy", func(c context.Context) (string, error) {
+			return s.downloadWithShruti(c, shrutiLegacyBaseURL, encodedURL, mediaType, track, ext)
+		}},
+		apiAttempt{"XBitCode", func(c context.Context) (string, error) {
+			return s.downloadWithXBitCode(c, track.ID, mediaType, track, ext)
+		}},
+		apiAttempt{"Ritesh", func(c context.Context) (string, error) {
+			return s.downloadWithRitesh(c, youtubeURL, mediaType, track, ext)
+		}},
+		apiAttempt{"ARC", func(c context.Context) (string, error) {
+			return s.downloadWithARC(c, encodedURL, track, ext)
+		}},
+	)
 
 	const apiTimeout = 10 * time.Second
 	var errs []string
@@ -548,7 +550,7 @@ func (s *ShrutiApiPlatform) downloadWithARC(
 	// Step 1: Initiate download
 	initEndpoint := fmt.Sprintf(
 		"%s/youtube/v2/download?query=%s&isVideo=%s&api_key=%s",
-		arcMusicBaseURL, encodedURL, isVideo, arcMusicAPIKey,
+		arcMusicBaseURL, track.ID, isVideo, arcMusicAPIKey,
 	)
 
 	gologging.DebugF("ShrutiApi: ARC Music initiating for %s", track.ID)
@@ -596,7 +598,7 @@ func (s *ShrutiApiPlatform) downloadWithARC(
 		case <-pollTicker.C:
 		}
 
-		pollReq, err := http.NewRequestWithContext(ctx, http.MethodGet, pollURL+"?job_id="+url.QueryEscape(jobID)+"&api_key="+url.QueryEscape(arcMusicAPIKey), nil)
+		pollReq, err := http.NewRequestWithContext(ctx, http.MethodGet, pollURL+"?job_id="+url.QueryEscape(jobID), nil)
 		if err != nil {
 			continue
 		}
@@ -633,6 +635,11 @@ func (s *ShrutiApiPlatform) downloadWithARC(
 			publicURL, _ := result["public_url"].(string)
 			if publicURL == "" {
 				return "", errors.New("arc: no public_url in job result")
+			}
+
+			// Handle relative URLs by prepending the base URL
+			if !strings.HasPrefix(publicURL, "http://") && !strings.HasPrefix(publicURL, "https://") {
+				publicURL = strings.TrimRight(arcMusicBaseURL, "/") + "/" + strings.TrimLeft(publicURL, "/")
 			}
 
 			dlReq, err := http.NewRequestWithContext(ctx, http.MethodGet, publicURL, nil)
