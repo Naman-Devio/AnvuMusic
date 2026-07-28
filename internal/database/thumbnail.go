@@ -11,7 +11,7 @@ import (
 	"fmt"
 	"image"
 	"image/color"
-	"image/draw"
+	stdDraw "image/draw"
 	"image/jpeg"
 	"image/png"
 	"io"
@@ -19,20 +19,21 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/Laky-64/gologging"
+	xdraw "golang.org/x/image/draw"
 	"golang.org/x/image/font"
 	"golang.org/x/image/font/basicfont"
-	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/gofont/gobold"
+	"golang.org/x/image/font/gofont/goregular"
 	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 	"golang.org/x/image/webp"
 )
-
-// ─── Cache ───────────────────────────────────────────────────────────────────
 
 var (
 	cacheDir   = "cache"
@@ -43,424 +44,855 @@ func init() {
 	_ = os.MkdirAll(cacheDir, 0o755)
 }
 
-// ─── Public Entry Point ───────────────────────────────────────────────────────
+const (
+	W           = 1280
+	H           = 720
+	renderScale = 2
+	internalW   = W * renderScale
+	internalH   = H * renderScale
+)
 
-// TrackInfo holds the data needed to render a thumbnail.
 type TrackInfo struct {
-	VideoID  string // YouTube video ID (used for cache key)
+	VideoID  string
 	Title    string
 	Artist   string
-	Duration string // e.g. "3:45"
-	Views    string // e.g. "1.2M views"
-	Artwork  string // remote thumbnail URL
+	Channel  string
+	Album    string
+	Duration string
+	Views    string
+	Quality  string
+	Source   string
+	Artwork  string
+	Elapsed  string
+	Progress float64
 
-	// Elapsed and Progress drive the playback bar. Progress is 0..1; if it's
-	// left at zero and Elapsed is empty, both are derived from Duration so
-	// old call sites that don't set these still render a sane static bar.
-	Elapsed  string  // e.g. "00:25" — pass the real playhead position
-	Progress float64 // 0..1 — pass Elapsed/TotalDuration
+	Verified       bool
+	Explicit       bool
+	HQ             bool
+	Lossless       bool
+	DolbyAtmos     bool
+	Lyrics         bool
+	Premium        bool
+	ShuffleEnabled bool
+	QueueEnabled   bool
+	IsPlaying      bool
+	RepeatMode     string
+	Volume         float64
 }
 
-// Generate returns a local path to the rendered thumbnail PNG.
-// If a cached copy exists it is returned immediately.
-func Generate(t TrackInfo) (string, error) {
-	gologging.DebugF("[thumbgen] Generating thumbnail for %s (artwork: %.80s)", t.VideoID, t.Artwork)
+type palette struct {
+	Dominant       color.RGBA
+	Accent         color.RGBA
+	Glow           color.RGBA
+	Shadow         color.RGBA
+	TextPrimary    color.RGBA
+	TextSecondary  color.RGBA
+	TextMuted      color.RGBA
+	CardFill       color.RGBA
+	CardStroke     color.RGBA
+	TrackFill      color.RGBA
+	TrackRemainder color.RGBA
+	BackgroundTop  color.RGBA
+	BackgroundBot  color.RGBA
+	UseDarkText    bool
+}
 
+type layout struct {
+	SafePad       int
+	Gap           int
+	ArtSize       int
+	ArtX          int
+	ArtY          int
+	CardX         int
+	CardY         int
+	CardW         int
+	CardH         int
+	WatermarkX    int
+	WatermarkY    int
+	WatermarkW    int
+	WatermarkH    int
+	CardRadius    int
+	ArtRadius     int
+	InnerPad      int
+	TitleTop      int
+	ProgressY     int
+	ProgressH     int
+	ControlsY     int
+	VolumeY       int
+	WaveformY     int
+	WaveformH     int
+	BadgeGap      int
+	ButtonRadius  int
+	MainButtonRad int
+}
+
+type renderer struct {
+	track    TrackInfo
+	artwork  image.Image
+	albumArt *image.RGBA
+	palette  palette
+	layout   layout
+
+	background *image.RGBA
+	ambient    *image.RGBA
+	content    *image.RGBA
+	backdrop   *image.RGBA
+}
+
+type textBlock struct {
+	Lines      []string
+	Size       int
+	LineHeight int
+	Height     int
+}
+
+type fontKey struct {
+	Size int
+	Bold bool
+}
+
+var (
+	fontOnce  sync.Once
+	fontMu    sync.Mutex
+	fontCache = map[fontKey]font.Face{}
+	regularTT *opentype.Font
+	boldTT    *opentype.Font
+)
+
+func parseFonts() {
+	fontOnce.Do(func() {
+		if f, err := opentype.Parse(goregular.TTF); err == nil {
+			regularTT = f
+		} else {
+			gologging.WarnF("[thumbgen] regular font parse failed: %v", err)
+		}
+		if f, err := opentype.Parse(gobold.TTF); err == nil {
+			boldTT = f
+		} else {
+			gologging.WarnF("[thumbgen] bold font parse failed: %v", err)
+		}
+	})
+}
+
+func getFace(size int, bold bool) font.Face {
+	parseFonts()
+	if size < 8 {
+		size = 8
+	}
+	key := fontKey{Size: size, Bold: bold}
+	fontMu.Lock()
+	defer fontMu.Unlock()
+	if f, ok := fontCache[key]; ok {
+		return f
+	}
+	src := regularTT
+	if bold {
+		src = boldTT
+	}
+	if src == nil {
+		return basicfont.Face7x13
+	}
+	face, err := opentype.NewFace(src, &opentype.FaceOptions{Size: float64(size), DPI: 72, Hinting: font.HintingFull})
+	if err != nil {
+		gologging.WarnF("[thumbgen] face creation failed size=%d bold=%v: %v", size, bold, err)
+		return basicfont.Face7x13
+	}
+	fontCache[key] = face
+	return face
+}
+
+func Generate(t TrackInfo) (string, error) {
+	if t.VideoID == "" {
+		t.VideoID = fmt.Sprintf("anon_%d", time.Now().UnixNano())
+	}
 	cachePath := filepath.Join(cacheDir, fmt.Sprintf("%s_anvu.png", t.VideoID))
 	if _, err := os.Stat(cachePath); err == nil {
-		gologging.DebugF("[thumbgen] Cache hit: %s", cachePath)
 		return cachePath, nil
 	}
-
-	rawPath := filepath.Join(cacheDir, fmt.Sprintf("raw_%s.jpg", t.VideoID))
+	if err := os.MkdirAll(cacheDir, 0o755); err != nil {
+		return "", err
+	}
+	rawPath := filepath.Join(cacheDir, fmt.Sprintf("raw_%s.img", t.VideoID))
 	if err := downloadFile(t.Artwork, rawPath); err != nil {
-		gologging.WarnF("[thumbgen] download failed: %v", err)
-		return "", fmt.Errorf("failed to download artwork: %w", err)
+		return "", fmt.Errorf("download artwork: %w", err)
 	}
 	defer os.Remove(rawPath)
 
 	src, err := loadImage(rawPath)
 	if err != nil {
-		gologging.WarnF("[thumbgen] loadImage failed: %v", err)
-		return "", fmt.Errorf("loadImage failed: %w", err)
+		return "", fmt.Errorf("decode artwork: %w", err)
 	}
-	gologging.DebugF("[thumbgen] Image loaded (%dx%d)", src.Bounds().Dx(), src.Bounds().Dy())
 
 	out, err := render(src, t)
 	if err != nil {
-		gologging.ErrorF("[thumbgen] render failed: %v", err)
-		return "", fmt.Errorf("render failed: %w", err)
+		return "", fmt.Errorf("render thumbnail: %w", err)
 	}
-
 	f, err := os.Create(cachePath)
 	if err != nil {
-		gologging.ErrorF("[thumbgen] os.Create failed: %v", err)
-		return "", fmt.Errorf("os.Create failed: %w", err)
+		return "", err
 	}
 	defer f.Close()
-
 	if err := png.Encode(f, out); err != nil {
-		os.Remove(cachePath)
-		gologging.ErrorF("[thumbgen] png.Encode failed: %v", err)
-		return "", fmt.Errorf("png.Encode failed: %w", err)
+		_ = os.Remove(cachePath)
+		return "", err
 	}
-
-	gologging.InfoF("[thumbgen] Thumbnail saved: %s", cachePath)
 	return cachePath, nil
 }
 
-// ClearCache removes all generated thumbnails from the cache directory.
 func ClearCache() {
 	matches, _ := filepath.Glob(filepath.Join(cacheDir, "*_anvu.png"))
-	for _, m := range matches {
-		os.Remove(m)
+	for _, file := range matches {
+		_ = os.Remove(file)
 	}
 }
 
-// ─── Canvas ──────────────────────────────────────────────────────────────────
+func render(src image.Image, t TrackInfo) (image.Image, error) {
+	r := &renderer{track: normalizeTrack(t), artwork: src}
+	r.layout = makeLayout(renderScale)
+	r.palette = extractPalette(src)
+	r.albumArt = coverCropResize(src, r.layout.ArtSize, r.layout.ArtSize)
+	r.background = r.buildBackground()
+	r.ambient = newRGBA(internalW, internalH)
+	r.content = newRGBA(internalW, internalH)
+	r.backdrop = flattenLayers(r.background, r.ambient)
 
-const (
-	W = 1280
-	H = 720
-)
+	r.drawAmbient()
+	r.backdrop = flattenLayers(r.background, r.ambient)
+	r.drawWatermarkCard()
+	r.drawArtwork()
+	r.drawInfoCard()
 
-// Accent palette — swap these two lines to switch the whole theme.
-var (
-	accentColor = color.RGBA{30, 215, 96, 255} // Spotify green
-	// accentColor = color.RGBA{252, 61, 122, 255} // Apple Music pink — swap in if preferred
-)
+	final := flattenLayers(r.background, r.ambient, r.content)
+	return resizeSmooth(final, W, H), nil
+}
 
-// ─── Fonts ───────────────────────────────────────────────────────────────────
+func normalizeTrack(t TrackInfo) TrackInfo {
+	t.Title = strings.TrimSpace(t.Title)
+	if t.Title == "" {
+		t.Title = "Unknown Track"
+	}
+	if strings.TrimSpace(t.Artist) == "" {
+		t.Artist = strings.TrimSpace(t.Channel)
+	}
+	if strings.TrimSpace(t.Artist) == "" {
+		t.Artist = "Unknown Artist"
+	}
+	if strings.TrimSpace(t.Source) == "" {
+		t.Source = "YouTube"
+	}
+	if t.Volume <= 0 {
+		t.Volume = 0.72
+	}
+	if t.Volume > 1 {
+		t.Volume = 1
+	}
+	if t.RepeatMode == "" {
+		t.RepeatMode = "all"
+	}
+	if !t.IsPlaying {
+		t.IsPlaying = true
+	}
+	return t
+}
 
-var (
-	fontMu       sync.Mutex
-	regularCache = map[int]font.Face{}
-	boldCache    = map[int]font.Face{}
-	regularTTF   *opentype.Font
-	boldTTF      *opentype.Font
-)
+func makeLayout(scale int) layout {
+	s := scale
+	safe := 96 * s
+	gap := 56 * s
+	art := 500 * s
+	cardX := safe + art + gap
+	cardW := internalW - safe - cardX
+	cardY := 220
+	cardH := internalH - 2*cardY
+	return layout{
+		SafePad:       safe,
+		Gap:           gap,
+		ArtSize:       art,
+		ArtX:          safe,
+		ArtY:          (internalH - art) / 2,
+		CardX:         cardX,
+		CardY:         cardY,
+		CardW:         cardW,
+		CardH:         cardH,
+		WatermarkX:    safe,
+		WatermarkY:    90,
+		WatermarkW:    290,
+		WatermarkH:    74,
+		CardRadius:    44,
+		ArtRadius:     54,
+		InnerPad:      88,
+		TitleTop:      210,
+		ProgressY:     cardY + cardH - 332,
+		ProgressH:     16,
+		ControlsY:     cardY + cardH - 170,
+		VolumeY:       cardY + cardH - 104,
+		WaveformY:     cardY + cardH - 380,
+		WaveformH:     62,
+		BadgeGap:      18,
+		ButtonRadius:  34,
+		MainButtonRad: 48,
+	}
+}
 
-func parseFonts() {
-	if regularTTF == nil {
-		f, err := opentype.Parse(goregular.TTF)
-		if err != nil {
-			gologging.ErrorF("[thumbgen] failed to parse regular TTF: %v", err)
-		} else {
-			regularTTF = f
+func (r *renderer) buildBackground() *image.RGBA {
+	bg := coverCropResize(r.artwork, internalW, internalH)
+	gaussianBlur(bg, 30)
+	overlayVerticalGradient(bg, color.RGBA{0, 0, 0, 30}, r.palette.BackgroundTop, 0.00, 0.55)
+	overlayVerticalGradient(bg, color.RGBA{0, 0, 0, 0}, r.palette.BackgroundBot, 0.55, 1.00)
+	applyTint(bg, mixColor(color.RGBA{9, 11, 15, 255}, r.palette.Dominant, 0.10), 0.28)
+	applyVignette(bg, 0.22)
+	addFilmGrain(bg, 0.025)
+	return bg
+}
+
+func (r *renderer) drawAmbient() {
+	artRect := image.Rect(r.layout.ArtX, r.layout.ArtY, r.layout.ArtX+r.layout.ArtSize, r.layout.ArtY+r.layout.ArtSize)
+	glowA := colorWithAlpha(r.palette.Glow, 76)
+	glowB := colorWithAlpha(mixColor(r.palette.Accent, color.RGBA{255, 255, 255, 255}, 0.12), 42)
+	drawRadialGlow(r.ambient, artRect.Min.X+artRect.Dx()/2-120, artRect.Min.Y+artRect.Dy()/2-60, artRect.Dx()+240, artRect.Dy()+240, glowA)
+	drawRadialGlow(r.ambient, artRect.Min.X+artRect.Dx()/2+160, artRect.Min.Y+artRect.Dy()/2+120, artRect.Dx(), artRect.Dy(), glowB)
+	drawRadialGlow(r.ambient, r.layout.CardX+r.layout.CardW/2, r.layout.CardY+r.layout.CardH-140, r.layout.CardW+260, 320, colorWithAlpha(r.palette.Accent, 26))
+}
+
+func (r *renderer) drawWatermarkCard() {
+	drawGlassPanel(r.content, r.backdrop, r.layout.WatermarkX, r.layout.WatermarkY, r.layout.WatermarkW, r.layout.WatermarkH, 28, r.palette, 0.22)
+	labelColor := colorWithAlpha(r.palette.TextSecondary, 210)
+	drawText(r.content, "ANVU MUSIC", r.layout.WatermarkX+32, r.layout.WatermarkY+47, labelColor, 24, true)
+	sub := strings.ToUpper(strings.TrimSpace(r.track.Source))
+	if sub != "" {
+		drawText(r.content, sub, r.layout.WatermarkX+188, r.layout.WatermarkY+47, colorWithAlpha(r.palette.TextMuted, 175), 19, false)
+	}
+}
+
+func (r *renderer) drawArtwork() {
+	x, y, size := r.layout.ArtX, r.layout.ArtY, r.layout.ArtSize
+	drawShadowRect(r.content, x-16, y+16, size+32, size+32, r.layout.ArtRadius+20, colorWithAlpha(r.palette.Shadow, 135), 26)
+	drawShadowRect(r.content, x-8, y+8, size+16, size+16, r.layout.ArtRadius+12, colorWithAlpha(r.palette.Glow, 60), 18)
+	pasteRoundedAA(r.content, r.albumArt, x, y, size, size, r.layout.ArtRadius)
+	drawRoundedRectBorderAA(r.content, x, y, size, size, r.layout.ArtRadius, color.RGBA{255, 255, 255, 96}, 2)
+	drawInnerHighlight(r.content, x, y, size, size, r.layout.ArtRadius, color.RGBA{255, 255, 255, 52})
+	drawReflection(r.content, x, y, size, size, r.layout.ArtRadius)
+}
+
+func (r *renderer) drawInfoCard() {
+	l := r.layout
+	drawGlassPanel(r.content, r.backdrop, l.CardX, l.CardY, l.CardW, l.CardH, l.CardRadius, r.palette, 0.28)
+	innerX := l.CardX + l.InnerPad
+	innerW := l.CardW - 2*l.InnerPad
+	top := l.CardY + 92
+
+	drawText(r.content, "NOW PLAYING", innerX, top, colorWithAlpha(r.palette.TextMuted, 190), 24, true)
+	if r.track.Premium {
+		drawChip(r.content, innerX+208, top-32, "PREMIUM", 20, colorWithAlpha(r.palette.Accent, 56), colorWithAlpha(r.palette.TextPrimary, 214), 16, true)
+	}
+
+	title := layoutTitle(r.track.Title, innerW, 2, 86, 52, true)
+	titleY := l.CardY + l.TitleTop
+	for i, line := range title.Lines {
+		drawText(r.content, line, innerX, titleY+i*title.LineHeight, r.palette.TextPrimary, title.Size, true)
+	}
+	artistY := titleY + title.Height + 38
+	drawText(r.content, r.track.Artist, innerX, artistY, r.palette.TextSecondary, 38, false)
+	cursorX := innerX + measureText(r.track.Artist, 38, false) + 18
+	if r.track.Verified {
+		drawVerifiedBadge(r.content, cursorX, artistY-23, 18)
+		cursorX += 46
+	}
+	if album := strings.TrimSpace(r.track.Album); album != "" {
+		drawText(r.content, album, innerX, artistY+46, colorWithAlpha(r.palette.TextMuted, 196), 28, false)
+	}
+
+	badgeY := artistY + 82
+	metaRowH := r.drawBadges(innerX, badgeY, innerW)
+	metaY := badgeY + metaRowH + 30
+	r.drawMetadata(innerX, metaY, innerW)
+	r.drawProgress(innerX, innerW)
+	r.drawControls(innerX, innerW)
+	r.drawVolume(innerX, innerW)
+	drawText(r.content, "ANVU MUSIC", l.CardX+l.CardW-216, l.CardY+l.CardH-42, colorWithAlpha(r.palette.TextMuted, 72), 18, true)
+}
+
+func (r *renderer) drawBadges(x, y, maxW int) int {
+	items := make([]string, 0, 8)
+	if r.track.Explicit {
+		items = append(items, "EXPLICIT")
+	}
+	if r.track.HQ {
+		items = append(items, "HQ")
+	}
+	if r.track.Lossless {
+		items = append(items, "LOSSLESS")
+	}
+	if r.track.DolbyAtmos {
+		items = append(items, "DOLBY ATMOS")
+	}
+	if r.track.Lyrics {
+		items = append(items, "LYRICS")
+	}
+	if r.track.Source != "" {
+		items = append(items, strings.ToUpper(r.track.Source))
+	}
+	if len(items) == 0 {
+		return 0
+	}
+	cx := x
+	cy := y
+	rowH := 38
+	for _, item := range items {
+		w := measureText(item, 16, true) + 34
+		if cx+w > x+maxW {
+			cx = x
+			cy += rowH + 14
+		}
+		drawChip(r.content, cx, cy-24, item, w, colorWithAlpha(r.palette.TextPrimary, 24), colorWithAlpha(r.palette.TextPrimary, 224), 16, true)
+		cx += w + r.layout.BadgeGap
+	}
+	return cy - y + rowH
+}
+
+func (r *renderer) drawMetadata(x, y, maxW int) {
+	values := make([]string, 0, 4)
+	if strings.TrimSpace(r.track.Views) != "" {
+		values = append(values, r.track.Views)
+	}
+	if strings.TrimSpace(r.track.Duration) != "" {
+		values = append(values, r.track.Duration)
+	}
+	if strings.TrimSpace(r.track.Quality) != "" {
+		values = append(values, r.track.Quality)
+	}
+	if strings.TrimSpace(r.track.Source) != "" {
+		values = append(values, r.track.Source)
+	}
+	if len(values) == 0 {
+		return
+	}
+	line := strings.Join(values, "   •   ")
+	block := layoutTitle(line, maxW, 2, 24, 18, false)
+	for i, l := range block.Lines {
+		drawText(r.content, l, x, y+i*block.LineHeight, colorWithAlpha(r.palette.TextMuted, 196), block.Size, false)
+	}
+}
+
+func (r *renderer) drawProgress(x, width int) {
+	l := r.layout
+	waveY := l.WaveformY
+	drawWaveform(r.content, x, waveY, width, l.WaveformH, colorWithAlpha(r.palette.TextPrimary, 42), r.palette.Accent)
+
+	progress := resolveProgress(r.track)
+	elapsed, total, remaining := resolveTimes(r.track, progress)
+	trackY := l.ProgressY
+	drawRoundedRect(r.content, x, trackY, width, l.ProgressH, l.ProgressH/2, colorWithAlpha(r.palette.TrackRemainder, 170))
+	fillW := int(float64(width) * progress)
+	if fillW < l.ProgressH {
+		fillW = l.ProgressH
+		if progress == 0 {
+			fillW = 0
 		}
 	}
-	if boldTTF == nil {
-		f, err := opentype.Parse(gobold.TTF)
-		if err != nil {
-			gologging.ErrorF("[thumbgen] failed to parse bold TTF: %v", err)
-		} else {
-			boldTTF = f
+	if fillW > 0 {
+		drawHorizontalGradientRoundedRect(r.content, x, trackY, fillW, l.ProgressH, l.ProgressH/2, colorWithAlpha(lightenColor(r.palette.Accent, 18), 240), colorWithAlpha(r.palette.Accent, 250))
+		drawShadowCircle(r.content, x+fillW, trackY+l.ProgressH/2, 18, colorWithAlpha(r.palette.Glow, 82), 12)
+		drawCircleAA(r.content, x+fillW, trackY+l.ProgressH/2, 10, color.RGBA{255, 255, 255, 245})
+	}
+	labelY := trackY + 52
+	drawText(r.content, elapsed, x, labelY, colorWithAlpha(r.palette.TextSecondary, 215), 22, false)
+	totalW := measureText(total, 22, false)
+	drawText(r.content, total, x+width/2-totalW/2, labelY, colorWithAlpha(r.palette.TextMuted, 178), 22, false)
+	remainingW := measureText(remaining, 22, false)
+	drawText(r.content, remaining, x+width-remainingW, labelY, colorWithAlpha(r.palette.TextSecondary, 215), 22, false)
+}
+
+func (r *renderer) drawControls(x, width int) {
+	cy := r.layout.ControlsY
+	center := x + width/2
+	gap := 94
+	iconColor := colorWithAlpha(r.palette.TextPrimary, 232)
+	mutedColor := colorWithAlpha(r.palette.TextPrimary, 176)
+
+	if r.track.ShuffleEnabled {
+		drawIconShuffle(r.content, center-gap*2-48, cy, 18, mutedColor)
+	}
+	drawIconPrevious(r.content, center-gap, cy, 20, iconColor)
+	drawControlButton(r.content, center, cy, r.layout.MainButtonRad, colorWithAlpha(r.palette.Accent, 238), colorWithAlpha(r.palette.Glow, 90))
+	if r.track.IsPlaying {
+		drawIconPause(r.content, center, cy, 22, color.RGBA{255, 255, 255, 255})
+	} else {
+		drawIconPlay(r.content, center+2, cy, 24, color.RGBA{255, 255, 255, 255})
+	}
+	drawIconNext(r.content, center+gap, cy, 20, iconColor)
+	drawIconRepeat(r.content, center+gap*2+48, cy, 18, mutedColor)
+
+	utilityX := x + width - 150
+	if r.track.Lyrics {
+		drawIconLyrics(r.content, utilityX, cy, 18, mutedColor)
+		utilityX += 54
+	}
+	if r.track.QueueEnabled {
+		drawIconQueue(r.content, utilityX, cy, 18, mutedColor)
+	}
+}
+
+func (r *renderer) drawVolume(x, width int) {
+	cy := r.layout.VolumeY
+	sliderW := 190
+	sliderX := x + width - sliderW
+	drawIconVolume(r.content, sliderX-34, cy, 16, colorWithAlpha(r.palette.TextSecondary, 220))
+	drawRoundedRect(r.content, sliderX, cy-7, sliderW, 10, 5, colorWithAlpha(r.palette.TrackRemainder, 170))
+	fill := int(float64(sliderW) * clamp01(r.track.Volume))
+	if fill > 0 {
+		drawHorizontalGradientRoundedRect(r.content, sliderX, cy-7, fill, 10, 5, colorWithAlpha(lightenColor(r.palette.Accent, 22), 230), colorWithAlpha(r.palette.Accent, 230))
+		drawCircleAA(r.content, sliderX+fill, cy-2, 8, color.RGBA{255, 255, 255, 245})
+	}
+}
+
+func layoutTitle(text string, maxWidth, maxLines, maxSize, minSize int, bold bool) textBlock {
+	text = normalizeWhitespace(text)
+	if text == "" {
+		return textBlock{Lines: []string{""}, Size: minSize, LineHeight: lineHeight(minSize, bold), Height: lineHeight(minSize, bold)}
+	}
+	for size := maxSize; size >= minSize; size -= 2 {
+		lines := wrapText(text, maxWidth, size, bold)
+		if len(lines) <= maxLines {
+			lh := lineHeight(size, bold)
+			return textBlock{Lines: lines, Size: size, LineHeight: lh, Height: len(lines) * lh}
 		}
 	}
+	lines := wrapText(text, maxWidth, minSize, bold)
+	if len(lines) > maxLines {
+		last := strings.Join(lines[maxLines-1:], " ")
+		lines = append(lines[:maxLines-1], last)
+	}
+	lh := lineHeight(minSize, bold)
+	return textBlock{Lines: lines, Size: minSize, LineHeight: lh, Height: len(lines) * lh}
 }
 
-func getFace(size int, bold bool) font.Face {
-	fontMu.Lock()
-	defer fontMu.Unlock()
-	parseFonts()
-
-	cache := regularCache
-	src := regularTTF
-	if bold {
-		cache = boldCache
-		src = boldTTF
+func wrapText(text string, maxWidth, size int, bold bool) []string {
+	words := strings.Fields(text)
+	if len(words) == 0 {
+		return []string{""}
 	}
-
-	if f, ok := cache[size]; ok {
-		return f
+	tokens := make([]string, 0, len(words))
+	for _, word := range words {
+		if measureText(word, size, bold) <= maxWidth {
+			tokens = append(tokens, word)
+			continue
+		}
+		tokens = append(tokens, breakLongWord(word, maxWidth, size, bold)...)
 	}
-	if src == nil {
-		return basicfont.Face7x13
+	lines := make([]string, 0, 2)
+	current := ""
+	for _, token := range tokens {
+		candidate := token
+		if current != "" {
+			candidate = current + " " + token
+		}
+		if measureText(candidate, size, bold) <= maxWidth {
+			current = candidate
+			continue
+		}
+		if current != "" {
+			lines = append(lines, current)
+		}
+		current = token
 	}
-	face, err := opentype.NewFace(src, &opentype.FaceOptions{
-		Size:    float64(size),
-		DPI:     72,
-		Hinting: font.HintingFull,
-	})
-	if err != nil {
-		gologging.ErrorF("[thumbgen] failed to create face size=%d bold=%v: %v", size, bold, err)
-		return basicfont.Face7x13
+	if current != "" {
+		lines = append(lines, current)
 	}
-	cache[size] = face
-	return face
+	return lines
 }
 
-// drawText renders a single line of text with its baseline at (x, y).
-func drawText(img *image.RGBA, text string, x, y int, c color.RGBA, size int, bold bool) {
-	face := getFace(size, bold)
-	d := &font.Drawer{
-		Dst:  img,
-		Src:  image.NewUniform(c),
-		Face: face,
-		Dot:  fixed.P(x, y),
+func breakLongWord(word string, maxWidth, size int, bold bool) []string {
+	runes := []rune(word)
+	parts := make([]string, 0, 2)
+	start := 0
+	for start < len(runes) {
+		end := start + 1
+		for end <= len(runes) && measureText(string(runes[start:end]), size, bold) <= maxWidth {
+			end++
+		}
+		if end == start+1 {
+			parts = append(parts, string(runes[start:end]))
+			start = end
+			continue
+		}
+		parts = append(parts, string(runes[start:end-1]))
+		start = end - 1
 	}
+	return parts
+}
+
+func normalizeWhitespace(s string) string {
+	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
+}
+
+func lineHeight(size int, bold bool) int {
+	return getFace(size, bold).Metrics().Height.Ceil() + int(float64(size)*0.10)
+}
+
+func drawText(dst *image.RGBA, text string, x, y int, c color.RGBA, size int, bold bool) {
+	d := &font.Drawer{Dst: dst, Src: image.NewUniform(c), Face: getFace(size, bold), Dot: fixed.P(x, y)}
 	d.DrawString(text)
 }
 
-// measureText returns the pixel width text would occupy at the given size.
 func measureText(text string, size int, bold bool) int {
-	face := getFace(size, bold)
-	d := &font.Drawer{Face: face}
+	d := &font.Drawer{Face: getFace(size, bold)}
 	return d.MeasureString(text).Ceil()
 }
 
-// ─── Layout / Render ─────────────────────────────────────────────────────────
-
-func render(src image.Image, t TrackInfo) (image.Image, error) {
-	bg := newRGBA(W, H)
-
-	// 1. Blurred, darkened backdrop filling the whole canvas.
-	backdrop := resizeImageSmooth(src, W, H)
-	draw.Draw(bg, bg.Bounds(), backdrop, image.Point{}, draw.Src)
-	gaussianBlur(bg, 32)
-	darken(bg, 0.34)
-
-	// 2. Album art frame — left side, rounded square with soft drop shadow.
-	frameW, frameH := 460, 460
-	frameX := 100
-	frameY := (H - frameH) / 2
-
-	album := resizeImageSmooth(src, frameW, frameH)
-
-	drawGlow(bg, frameX-24, frameY-24, frameW+48, frameH+48, 44, color.RGBA{0, 0, 0, 170})
-	pasteRoundedAA(bg, album, frameX, frameY, frameW, frameH, 36)
-	drawRoundedRectBorderAA(bg, frameX, frameY, frameW, frameH, 36, color.RGBA{255, 255, 255, 90}, 3)
-
-	// 3. Frosted glass card — right side.
-	cardX1 := frameX + frameW + 60
-	cardY1 := frameY
-	cardX2 := W - 70
-	cardY2 := frameY + frameH
-	drawFrostedGlassCard(bg, cardX1, cardY1, cardX2, cardY2, 32)
-
-	// 4. Text + progress bar inside the card.
-	pad := 42
-	textX := cardX1 + pad
-	maxTextW := (cardX2 - pad) - textX
-
-	titleColor := color.RGBA{255, 255, 255, 255}
-	artistColor := color.RGBA{190, 190, 198, 235} // pulled down from the old 215/215/220 — reads
-	// as a clearer step below the title now instead of a near-white blur into it
-	metaColor := color.RGBA{150, 150, 158, 200}
-	timeColor := color.RGBA{225, 225, 228, 220}
-
-	titleSize, artistSize, metaSize, timeSize := 34, 21, 18, 16
-
-	titleY := cardY1 + 64
-	artistY := titleY + 44
-	viewsY := artistY + 36
-	barY := cardY2 - 92
-
-	title := fitText(t.Title, titleSize, true, maxTextW)
-	drawText(bg, title, textX, titleY, titleColor, titleSize, true)
-
-	artistLine := fitText("By "+t.Artist, artistSize, false, maxTextW)
-	drawText(bg, artistLine, textX, artistY, artistColor, artistSize, false)
-
-	viewsLine := fitText("Views: "+t.Views, metaSize, false, maxTextW)
-	drawText(bg, viewsLine, textX, viewsY, metaColor, metaSize, false)
-
-	// Progress bar — now driven by t.Progress/t.Elapsed instead of a fixed
-	// preview value, with a sane fallback so old callers don't break.
-	progress := t.Progress
-	if progress < 0 {
-		progress = 0
+func resolveProgress(t TrackInfo) float64 {
+	if t.Progress > 0 {
+		return clamp01(t.Progress)
 	}
-	if progress > 1 {
-		progress = 1
+	if elapsedSec, totalSec, ok := parseElapsedAndDuration(t.Elapsed, t.Duration); ok && totalSec > 0 {
+		return clamp01(float64(elapsedSec) / float64(totalSec))
 	}
-
-	barW := maxTextW
-	barH := 6
-	drawRoundedRect(bg, textX, barY, barW, barH, 3, color.RGBA{255, 255, 255, 45})
-
-	filledW := int(float64(barW) * progress)
-	if filledW > 0 {
-		drawRoundedRect(bg, textX, barY, filledW, barH, 3, accentColor)
+	if strings.TrimSpace(t.Duration) != "" {
+		return 0.38
 	}
-	drawCircleAA(bg, textX+filledW, barY+barH/2, 8, color.RGBA{255, 255, 255, 255})
-
-	elapsed := t.Elapsed
-	if elapsed == "" {
-		elapsed = elapsedFromProgress(t.Duration, progress)
-	}
-	drawText(bg, elapsed, textX, barY+34, timeColor, timeSize, false)
-
-	duration := t.Duration
-	if duration == "" {
-		duration = "--:--"
-	}
-	durW := measureText(duration, timeSize, false)
-	drawText(bg, duration, textX+barW-durW, barY+34, timeColor, timeSize, false)
-
-	return bg, nil
+	return 0.28
 }
 
-// elapsedFromProgress derives an "mm:ss" elapsed label from a duration string
-// (format "m:ss" or "mm:ss", matching TrackInfo.Duration) and a 0..1
-// progress fraction. Falls back to "00:00" if duration can't be parsed —
-// this only fires when a caller sets Progress but not Elapsed directly.
-func elapsedFromProgress(duration string, progress float64) string {
-	var mins, secs int
-	if _, err := fmt.Sscanf(duration, "%d:%d", &mins, &secs); err != nil {
-		return "00:00"
+func resolveTimes(t TrackInfo, progress float64) (string, string, string) {
+	totalSec, ok := parseDuration(t.Duration)
+	if !ok || totalSec <= 0 {
+		elapsed := strings.TrimSpace(t.Elapsed)
+		if elapsed == "" {
+			elapsed = "00:00"
+		}
+		return elapsed, "--:--", "--:--"
 	}
-	totalSecs := mins*60 + secs
-	elapsedSecs := int(float64(totalSecs) * progress)
-	return fmt.Sprintf("%02d:%02d", elapsedSecs/60, elapsedSecs%60)
+	elapsedSec := int(math.Round(float64(totalSec) * progress))
+	if parsedElapsed, _, ok := parseElapsedAndDuration(t.Elapsed, t.Duration); ok {
+		elapsedSec = parsedElapsed
+	}
+	if elapsedSec < 0 {
+		elapsedSec = 0
+	}
+	if elapsedSec > totalSec {
+		elapsedSec = totalSec
+	}
+	remaining := totalSec - elapsedSec
+	return formatClock(elapsedSec), formatClock(totalSec), "-" + formatClock(remaining)
 }
 
-// fitText truncates text with an ellipsis until it fits within maxW pixels
-// at the given font size/weight. This replaces naive rune-count truncation,
-// which doesn't account for variable glyph widths.
-func fitText(s string, size int, bold bool, maxW int) string {
-	if measureText(s, size, bold) <= maxW {
-		return s
+func parseElapsedAndDuration(elapsed, duration string) (int, int, bool) {
+	e, ok1 := parseDuration(elapsed)
+	t, ok2 := parseDuration(duration)
+	return e, t, ok1 && ok2
+}
+
+func parseDuration(s string) (int, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, false
 	}
-	runes := []rune(s)
-	for len(runes) > 1 {
-		runes = runes[:len(runes)-1]
-		candidate := string(runes) + "…"
-		if measureText(candidate, size, bold) <= maxW {
-			return candidate
+	parts := strings.Split(s, ":")
+	if len(parts) < 2 || len(parts) > 3 {
+		return 0, false
+	}
+	vals := make([]int, len(parts))
+	for i, p := range parts {
+		var v int
+		if _, err := fmt.Sscanf(p, "%d", &v); err != nil {
+			return 0, false
+		}
+		vals[i] = v
+	}
+	if len(vals) == 2 {
+		return vals[0]*60 + vals[1], true
+	}
+	return vals[0]*3600 + vals[1]*60 + vals[2], true
+}
+
+func formatClock(sec int) string {
+	if sec < 0 {
+		sec = 0
+	}
+	if sec >= 3600 {
+		return fmt.Sprintf("%d:%02d:%02d", sec/3600, (sec/60)%60, sec%60)
+	}
+	return fmt.Sprintf("%02d:%02d", sec/60, sec%60)
+}
+
+func extractPalette(src image.Image) palette {
+	sample := coverCropResize(src, 72, 72)
+	type bucket struct{ count, r, g, b int }
+	buckets := map[int]*bucket{}
+	var totalR, totalG, totalB, total int
+	for y := 0; y < 72; y++ {
+		for x := 0; x < 72; x++ {
+			c := sample.RGBAAt(x, y)
+			if c.A < 32 {
+				continue
+			}
+			lum := luminance(c)
+			sat := saturation(c)
+			weight := 1
+			if sat > 0.22 {
+				weight += 2
+			}
+			if lum > 0.08 && lum < 0.92 {
+				weight++
+			}
+			key := int(c.R>>4)<<8 | int(c.G>>4)<<4 | int(c.B>>4)
+			bk := buckets[key]
+			if bk == nil {
+				bk = &bucket{}
+				buckets[key] = bk
+			}
+			bk.count += weight
+			bk.r += int(c.R) * weight
+			bk.g += int(c.G) * weight
+			bk.b += int(c.B) * weight
+			totalR += int(c.R)
+			totalG += int(c.G)
+			totalB += int(c.B)
+			total++
 		}
 	}
-	return "…"
+	dominant := color.RGBA{90, 120, 180, 255}
+	bestScore := -1.0
+	for _, bk := range buckets {
+		if bk.count == 0 {
+			continue
+		}
+		c := color.RGBA{uint8(bk.r / bk.count), uint8(bk.g / bk.count), uint8(bk.b / bk.count), 255}
+		score := float64(bk.count) * (0.70 + saturation(c))
+		lum := luminance(c)
+		if lum < 0.08 || lum > 0.94 {
+			score *= 0.65
+		}
+		if score > bestScore {
+			bestScore = score
+			dominant = c
+		}
+	}
+	avg := dominant
+	if total > 0 {
+		avg = color.RGBA{uint8(totalR / total), uint8(totalG / total), uint8(totalB / total), 255}
+	}
+	accent := boostColor(mixColor(dominant, avg, 0.22), 1.15, 1.05)
+	glow := colorWithAlpha(boostColor(accent, 1.08, 1.12), 255)
+	shadow := darkenColor(accent, 0.55)
+	useDarkText := luminance(avg) > 0.64
+	textPrimary := color.RGBA{246, 247, 250, 255}
+	textSecondary := color.RGBA{220, 223, 229, 255}
+	textMuted := color.RGBA{177, 182, 191, 255}
+	cardFill := color.RGBA{255, 255, 255, 36}
+	cardStroke := color.RGBA{255, 255, 255, 62}
+	trackRemainder := color.RGBA{255, 255, 255, 52}
+	if useDarkText {
+		textPrimary = color.RGBA{28, 32, 40, 255}
+		textSecondary = color.RGBA{52, 58, 69, 255}
+		textMuted = color.RGBA{81, 89, 102, 255}
+		cardFill = color.RGBA{255, 255, 255, 86}
+		cardStroke = color.RGBA{255, 255, 255, 124}
+		trackRemainder = color.RGBA{30, 36, 48, 50}
+	}
+	return palette{
+		Dominant:       dominant,
+		Accent:         accent,
+		Glow:           glow,
+		Shadow:         shadow,
+		TextPrimary:    textPrimary,
+		TextSecondary:  textSecondary,
+		TextMuted:      textMuted,
+		CardFill:       cardFill,
+		CardStroke:     cardStroke,
+		TrackFill:      accent,
+		TrackRemainder: trackRemainder,
+		BackgroundTop:  color.RGBA{10, 12, 16, 102},
+		BackgroundBot:  color.RGBA{4, 5, 8, 210},
+		UseDarkText:    useDarkText,
+	}
 }
-
-// ─── Image Ops ───────────────────────────────────────────────────────────────
 
 func newRGBA(w, h int) *image.RGBA {
 	return image.NewRGBA(image.Rect(0, 0, w, h))
 }
 
-// resizeImageSmooth performs bilinear resampling (much smoother than nearest-
-// neighbour, avoids the blocky look on both the backdrop and the album art).
-func resizeImageSmooth(src image.Image, newW, newH int) *image.RGBA {
-	dst := newRGBA(newW, newH)
-	sb := src.Bounds()
-	srcW, srcH := float64(sb.Dx()), float64(sb.Dy())
-
-	// Pre-fetch source into a plain RGBA buffer for fast random access.
-	srcRGBA := toRGBA(src)
-
-	for y := 0; y < newH; y++ {
-		fy := (float64(y)+0.5)*srcH/float64(newH) - 0.5
-		y0 := int(math.Floor(fy))
-		wy := fy - float64(y0)
-		for x := 0; x < newW; x++ {
-			fx := (float64(x)+0.5)*srcW/float64(newW) - 0.5
-			x0 := int(math.Floor(fx))
-			wx := fx - float64(x0)
-
-			c00 := sampleClamped(srcRGBA, x0, y0)
-			c10 := sampleClamped(srcRGBA, x0+1, y0)
-			c01 := sampleClamped(srcRGBA, x0, y0+1)
-			c11 := sampleClamped(srcRGBA, x0+1, y0+1)
-
-			r := lerp2D(c00.R, c10.R, c01.R, c11.R, wx, wy)
-			g := lerp2D(c00.G, c10.G, c01.G, c11.G, wx, wy)
-			bch := lerp2D(c00.B, c10.B, c01.B, c11.B, wx, wy)
-			a := lerp2D(c00.A, c10.A, c01.A, c11.A, wx, wy)
-			dst.SetRGBA(x, y, color.RGBA{r, g, bch, a})
+func flattenLayers(layers ...*image.RGBA) *image.RGBA {
+	if len(layers) == 0 {
+		return newRGBA(internalW, internalH)
+	}
+	out := newRGBA(layers[0].Bounds().Dx(), layers[0].Bounds().Dy())
+	for _, layer := range layers {
+		if layer == nil {
+			continue
 		}
+		stdDraw.Draw(out, out.Bounds(), layer, image.Point{}, stdDraw.Over)
 	}
-	return dst
-}
-
-func toRGBA(src image.Image) *image.RGBA {
-	if r, ok := src.(*image.RGBA); ok {
-		return r
-	}
-	b := src.Bounds()
-	out := newRGBA(b.Dx(), b.Dy())
-	draw.Draw(out, out.Bounds(), src, b.Min, draw.Src)
 	return out
 }
 
-func sampleClamped(src *image.RGBA, x, y int) color.RGBA {
-	b := src.Bounds()
-	if x < 0 {
-		x = 0
-	}
-	if y < 0 {
-		y = 0
-	}
-	if x >= b.Dx() {
-		x = b.Dx() - 1
-	}
-	if y >= b.Dy() {
-		y = b.Dy() - 1
-	}
-	return src.RGBAAt(b.Min.X+x, b.Min.Y+y)
+func copyRGBA(src *image.RGBA) *image.RGBA {
+	out := newRGBA(src.Bounds().Dx(), src.Bounds().Dy())
+	copy(out.Pix, src.Pix)
+	return out
 }
 
-func lerp2D(v00, v10, v01, v11 uint8, wx, wy float64) uint8 {
-	top := float64(v00)*(1-wx) + float64(v10)*wx
-	bot := float64(v01)*(1-wx) + float64(v11)*wx
-	res := top*(1-wy) + bot*wy
-	if res < 0 {
-		res = 0
-	}
-	if res > 255 {
-		res = 255
-	}
-	return uint8(res)
+func resizeSmooth(src image.Image, w, h int) *image.RGBA {
+	dst := newRGBA(w, h)
+	xdraw.CatmullRom.Scale(dst, dst.Bounds(), src, src.Bounds(), stdDraw.Over, nil)
+	return dst
 }
 
-// gaussianBlur applies a 3-pass box blur (a good Gaussian approximation).
+func coverCropResize(src image.Image, w, h int) *image.RGBA {
+	sb := src.Bounds()
+	sw, sh := float64(sb.Dx()), float64(sb.Dy())
+	targetRatio := float64(w) / float64(h)
+	srcRatio := sw / sh
+	crop := sb
+	if srcRatio > targetRatio {
+		cropW := int(sh * targetRatio)
+		ox := sb.Min.X + (sb.Dx()-cropW)/2
+		crop = image.Rect(ox, sb.Min.Y, ox+cropW, sb.Max.Y)
+	} else if srcRatio < targetRatio {
+		cropH := int(sw / targetRatio)
+		oy := sb.Min.Y + (sb.Dy()-cropH)/2
+		crop = image.Rect(sb.Min.X, oy, sb.Max.X, oy+cropH)
+	}
+	tmp := image.NewRGBA(image.Rect(0, 0, crop.Dx(), crop.Dy()))
+	stdDraw.Draw(tmp, tmp.Bounds(), src, crop.Min, stdDraw.Src)
+	return resizeSmooth(tmp, w, h)
+}
+
 func gaussianBlur(img *image.RGBA, radius int) {
 	if radius <= 0 {
 		return
 	}
-	for pass := 0; pass < 3; pass++ {
-		boxBlurH(img, radius)
-		boxBlurV(img, radius)
+	for i := 0; i < 3; i++ {
+		boxBlurHorizontal(img, radius)
+		boxBlurVertical(img, radius)
 	}
 }
 
-func boxBlurH(img *image.RGBA, r int) {
+func boxBlurHorizontal(img *image.RGBA, r int) {
 	b := img.Bounds()
 	buf := make([]color.RGBA, b.Dx())
 	for y := b.Min.Y; y < b.Max.Y; y++ {
-		var sumR, sumG, sumB, sumA int64
-		count := int64(0)
-		for dx := 0; dx <= r && dx < b.Dx(); dx++ {
-			c := img.RGBAAt(b.Min.X+dx, y)
-			sumR += int64(c.R)
-			sumG += int64(c.G)
-			sumB += int64(c.B)
-			sumA += int64(c.A)
+		var sumR, sumG, sumB, sumA int
+		count := 0
+		for dx := -r; dx <= r; dx++ {
+			x := clampInt(b.Min.X, b.Max.X-1, b.Min.X+dx)
+			c := img.RGBAAt(x, y)
+			sumR += int(c.R)
+			sumG += int(c.G)
+			sumB += int(c.B)
+			sumA += int(c.A)
 			count++
 		}
 		for x := b.Min.X; x < b.Max.X; x++ {
-			buf[x-b.Min.X] = color.RGBA{
-				R: uint8(sumR / count), G: uint8(sumG / count),
-				B: uint8(sumB / count), A: uint8(sumA / count),
-			}
-			addX := x + r + 1
-			remX := x - r
-			if addX < b.Max.X {
-				c := img.RGBAAt(addX, y)
-				sumR += int64(c.R)
-				sumG += int64(c.G)
-				sumB += int64(c.B)
-				sumA += int64(c.A)
-				count++
-			}
-			if remX >= b.Min.X {
-				c := img.RGBAAt(remX, y)
-				sumR -= int64(c.R)
-				sumG -= int64(c.G)
-				sumB -= int64(c.B)
-				sumA -= int64(c.A)
-				count--
-			}
+			buf[x-b.Min.X] = color.RGBA{uint8(sumR / count), uint8(sumG / count), uint8(sumB / count), uint8(sumA / count)}
+			addX := clampInt(b.Min.X, b.Max.X-1, x+r+1)
+			remX := clampInt(b.Min.X, b.Max.X-1, x-r)
+			add := img.RGBAAt(addX, y)
+			rem := img.RGBAAt(remX, y)
+			sumR += int(add.R) - int(rem.R)
+			sumG += int(add.G) - int(rem.G)
+			sumB += int(add.B) - int(rem.B)
+			sumA += int(add.A) - int(rem.A)
 		}
 		for x := b.Min.X; x < b.Max.X; x++ {
 			img.SetRGBA(x, y, buf[x-b.Min.X])
@@ -468,43 +900,31 @@ func boxBlurH(img *image.RGBA, r int) {
 	}
 }
 
-func boxBlurV(img *image.RGBA, r int) {
+func boxBlurVertical(img *image.RGBA, r int) {
 	b := img.Bounds()
 	buf := make([]color.RGBA, b.Dy())
 	for x := b.Min.X; x < b.Max.X; x++ {
-		var sumR, sumG, sumB, sumA int64
-		count := int64(0)
-		for dy := 0; dy <= r && dy < b.Dy(); dy++ {
-			c := img.RGBAAt(x, b.Min.Y+dy)
-			sumR += int64(c.R)
-			sumG += int64(c.G)
-			sumB += int64(c.B)
-			sumA += int64(c.A)
+		var sumR, sumG, sumB, sumA int
+		count := 0
+		for dy := -r; dy <= r; dy++ {
+			y := clampInt(b.Min.Y, b.Max.Y-1, b.Min.Y+dy)
+			c := img.RGBAAt(x, y)
+			sumR += int(c.R)
+			sumG += int(c.G)
+			sumB += int(c.B)
+			sumA += int(c.A)
 			count++
 		}
 		for y := b.Min.Y; y < b.Max.Y; y++ {
-			buf[y-b.Min.Y] = color.RGBA{
-				R: uint8(sumR / count), G: uint8(sumG / count),
-				B: uint8(sumB / count), A: uint8(sumA / count),
-			}
-			addY := y + r + 1
-			remY := y - r
-			if addY < b.Max.Y {
-				c := img.RGBAAt(x, addY)
-				sumR += int64(c.R)
-				sumG += int64(c.G)
-				sumB += int64(c.B)
-				sumA += int64(c.A)
-				count++
-			}
-			if remY >= b.Min.Y {
-				c := img.RGBAAt(x, remY)
-				sumR -= int64(c.R)
-				sumG -= int64(c.G)
-				sumB -= int64(c.B)
-				sumA -= int64(c.A)
-				count--
-			}
+			buf[y-b.Min.Y] = color.RGBA{uint8(sumR / count), uint8(sumG / count), uint8(sumB / count), uint8(sumA / count)}
+			addY := clampInt(b.Min.Y, b.Max.Y-1, y+r+1)
+			remY := clampInt(b.Min.Y, b.Max.Y-1, y-r)
+			add := img.RGBAAt(x, addY)
+			rem := img.RGBAAt(x, remY)
+			sumR += int(add.R) - int(rem.R)
+			sumG += int(add.G) - int(rem.G)
+			sumB += int(add.B) - int(rem.B)
+			sumA += int(add.A) - int(rem.A)
 		}
 		for y := b.Min.Y; y < b.Max.Y; y++ {
 			img.SetRGBA(x, y, buf[y-b.Min.Y])
@@ -512,36 +932,364 @@ func boxBlurV(img *image.RGBA, r int) {
 	}
 }
 
-func darken(img *image.RGBA, factor float64) {
+func applyTint(img *image.RGBA, tint color.RGBA, opacity float64) {
+	alpha := clamp01(opacity)
 	b := img.Bounds()
 	for y := b.Min.Y; y < b.Max.Y; y++ {
 		for x := b.Min.X; x < b.Max.X; x++ {
 			c := img.RGBAAt(x, y)
+			img.SetRGBA(x, y, mixColor(c, tint, alpha))
+		}
+	}
+}
+
+func overlayVerticalGradient(img *image.RGBA, top, bottom color.RGBA, from, to float64) {
+	b := img.Bounds()
+	startY := int(float64(b.Dy()) * from)
+	endY := int(float64(b.Dy()) * to)
+	if endY <= startY {
+		return
+	}
+	for y := startY; y < endY; y++ {
+		t := float64(y-startY) / float64(endY-startY)
+		g := mixColor(top, bottom, t)
+		for x := b.Min.X; x < b.Max.X; x++ {
+			blendPixel(img, x, y, g)
+		}
+	}
+}
+
+func applyVignette(img *image.RGBA, strength float64) {
+	b := img.Bounds()
+	cx := float64(b.Dx()) / 2
+	cy := float64(b.Dy()) / 2
+	maxD := math.Hypot(cx, cy)
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			d := math.Hypot(float64(x)-cx, float64(y)-cy) / maxD
+			fade := clamp01((d - 0.35) / 0.65)
+			alpha := uint8(255 * fade * strength)
+			blendPixel(img, x, y, color.RGBA{0, 0, 0, alpha})
+		}
+	}
+}
+
+func addFilmGrain(img *image.RGBA, intensity float64) {
+	b := img.Bounds()
+	for y := b.Min.Y; y < b.Max.Y; y++ {
+		for x := b.Min.X; x < b.Max.X; x++ {
+			c := img.RGBAAt(x, y)
+			n := (hashNoise(x, y) - 0.5) * 2 * intensity * 255
 			img.SetRGBA(x, y, color.RGBA{
-				R: uint8(float64(c.R) * factor),
-				G: uint8(float64(c.G) * factor),
-				B: uint8(float64(c.B) * factor),
+				R: clampByte(float64(c.R) + n),
+				G: clampByte(float64(c.G) + n),
+				B: clampByte(float64(c.B) + n),
 				A: c.A,
 			})
 		}
 	}
 }
 
-func lighten(v uint8, amt int) uint8 {
-	n := int(v) + amt
-	if n > 255 {
-		n = 255
+func drawGlassPanel(dst, backdrop *image.RGBA, x, y, w, h, radius int, pal palette, fillStrength float64) {
+	region := sampleRegion(backdrop, x, y, w, h)
+	gaussianBlur(region, 18)
+	for py := 0; py < h; py++ {
+		for px := 0; px < w; px++ {
+			cov := roundedCoverage(px, py, w, h, float64(radius))
+			if cov <= 0 {
+				continue
+			}
+			base := region.RGBAAt(px, py)
+			highlight := int(26 * math.Pow(1-clamp01(float64(py)/float64(h)*1.35), 2))
+			grain := int((hashNoise(x+px, y+py) - 0.5) * 8)
+			fill := color.RGBA{
+				R: lighten(base.R, int(float64(24+highlight+grain)*fillStrength*3.2)),
+				G: lighten(base.G, int(float64(24+highlight+grain)*fillStrength*3.2)),
+				B: lighten(base.B, int(float64(30+highlight+grain)*fillStrength*3.2)),
+				A: uint8((98 + fillStrength*110) * cov),
+			}
+			blendPixel(dst, x+px, y+py, fill)
+		}
 	}
-	if n < 0 {
-		n = 0
-	}
-	return uint8(n)
+	drawRoundedRectBorderAA(dst, x, y, w, h, radius, pal.CardStroke, 2)
+	drawInnerHighlight(dst, x, y, w, h, radius, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 36))
+	drawShadowRect(dst, x, y+8, w, h, radius, colorWithAlpha(color.RGBA{0, 0, 0, 255}, 36), 18)
 }
 
-// ─── Rounded Rects / Anti-aliasing ────────────────────────────────────────────
+func sampleRegion(src *image.RGBA, x, y, w, h int) *image.RGBA {
+	out := newRGBA(w, h)
+	for py := 0; py < h; py++ {
+		for px := 0; px < w; px++ {
+			out.SetRGBA(px, py, src.RGBAAt(clampInt(0, src.Bounds().Dx()-1, x+px), clampInt(0, src.Bounds().Dy()-1, y+py)))
+		}
+	}
+	return out
+}
 
-// roundedContains reports whether point (x,y) lies inside a w×h rect with
-// corner radius r, treating (0,0) as the rect's top-left.
+func drawChip(dst *image.RGBA, x, y int, label string, width int, fill, fg color.RGBA, size int, bold bool) {
+	height := 34
+	drawRoundedRect(dst, x, y, width, height, 17, fill)
+	drawRoundedRectBorderAA(dst, x, y, width, height, 17, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 28), 1)
+	tx := x + (width-measureText(label, size, bold))/2
+	drawText(dst, label, tx, y+23, fg, size, bold)
+}
+
+func drawWaveform(dst *image.RGBA, x, y, w, h int, base, accent color.RGBA) {
+	bars := 46
+	gap := 8
+	barW := (w - gap*(bars-1)) / bars
+	if barW < 2 {
+		barW = 2
+	}
+	mid := y + h/2
+	for i := 0; i < bars; i++ {
+		phase := float64(i) / float64(bars-1)
+		amp := 0.18 + 0.82*math.Abs(math.Sin(phase*math.Pi*3.2+0.6))*0.65 + 0.35*hashNoise(i*17, h)
+		barH := int(float64(h) * clamp01(amp))
+		if barH < 8 {
+			barH = 8
+		}
+		bx := x + i*(barW+gap)
+		by := mid - barH/2
+		col := mixColor(base, accent, 0.25+0.55*phase)
+		drawRoundedRect(dst, bx, by, barW, barH, barW/2, colorWithAlpha(col, 72))
+	}
+}
+
+func drawVerifiedBadge(dst *image.RGBA, x, y, r int) {
+	blue := color.RGBA{64, 153, 255, 255}
+	drawCircleAA(dst, x, y, r, blue)
+	drawLineAA(dst, float64(x-r/3), float64(y), float64(x-r/10), float64(y+r/4), 4, color.RGBA{255, 255, 255, 255})
+	drawLineAA(dst, float64(x-r/12), float64(y+r/4), float64(x+r/2), float64(y-r/3), 4, color.RGBA{255, 255, 255, 255})
+}
+
+func drawControlButton(dst *image.RGBA, x, y, r int, fill, glow color.RGBA) {
+	drawShadowCircle(dst, x, y+4, r+10, glow, 14)
+	drawCircleAA(dst, x, y, r, fill)
+	drawCircleBorder(dst, x, y, r, color.RGBA{255, 255, 255, 82}, 2)
+}
+
+func drawIconPlay(dst *image.RGBA, x, y, size int, c color.RGBA) {
+	fillTriangle(dst, image.Point{x - size/3, y - size/2}, image.Point{x - size/3, y + size/2}, image.Point{x + size/2, y}, c)
+}
+
+func drawIconPause(dst *image.RGBA, x, y, size int, c color.RGBA) {
+	w := size / 3
+	h := size
+	drawRoundedRect(dst, x-w-4, y-h/2, w, h, 4, c)
+	drawRoundedRect(dst, x+4, y-h/2, w, h, 4, c)
+}
+
+func drawIconPrevious(dst *image.RGBA, x, y, size int, c color.RGBA) {
+	drawRoundedRect(dst, x-size/2-6, y-size/2, 5, size, 2, c)
+	fillTriangle(dst, image.Point{x - 4, y}, image.Point{x + size/2, y - size/2}, image.Point{x + size/2, y + size/2}, c)
+	fillTriangle(dst, image.Point{x - size/2 + 2, y}, image.Point{x + 2, y - size/2}, image.Point{x + 2, y + size/2}, c)
+}
+
+func drawIconNext(dst *image.RGBA, x, y, size int, c color.RGBA) {
+	drawRoundedRect(dst, x+size/2+1, y-size/2, 5, size, 2, c)
+	fillTriangle(dst, image.Point{x + 4, y}, image.Point{x - size/2, y - size/2}, image.Point{x - size/2, y + size/2}, c)
+	fillTriangle(dst, image.Point{x + size/2 - 2, y}, image.Point{x - 2, y - size/2}, image.Point{x - 2, y + size/2}, c)
+}
+
+func drawIconShuffle(dst *image.RGBA, x, y, size int, c color.RGBA) {
+	drawLineAA(dst, float64(x-size), float64(y-size/2), float64(x+size), float64(y+size/2), 3, c)
+	drawLineAA(dst, float64(x-size), float64(y+size/2), float64(x-size/5), float64(y+size/2), 3, c)
+	drawLineAA(dst, float64(x+size/6), float64(y-size/2), float64(x+size), float64(y-size/2), 3, c)
+	fillTriangle(dst, image.Point{x + size, y + size/2}, image.Point{x + size - 9, y + size/2 - 6}, image.Point{x + size - 9, y + size/2 + 6}, c)
+	fillTriangle(dst, image.Point{x + size, y - size/2}, image.Point{x + size - 9, y - size/2 - 6}, image.Point{x + size - 9, y - size/2 + 6}, c)
+	drawLineAA(dst, float64(x-size), float64(y+size/2), float64(x-size/5), float64(y+size/2), 3, c)
+	drawLineAA(dst, float64(x-size/5), float64(y+size/2), float64(x+size), float64(y-size/2), 3, c)
+}
+
+func drawIconRepeat(dst *image.RGBA, x, y, size int, c color.RGBA) {
+	drawLineAA(dst, float64(x-size), float64(y-size/3), float64(x+size/2), float64(y-size/3), 3, c)
+	drawLineAA(dst, float64(x+size/2), float64(y-size/3), float64(x+size/2), float64(y+size/3), 3, c)
+	drawLineAA(dst, float64(x+size), float64(y+size/3), float64(x-size/2), float64(y+size/3), 3, c)
+	drawLineAA(dst, float64(x-size/2), float64(y+size/3), float64(x-size/2), float64(y-size/3), 3, c)
+	fillTriangle(dst, image.Point{x + size/2, y - size/3}, image.Point{x + size/2 - 6, y - size/3 - 6}, image.Point{x + size/2 - 6, y - size/3 + 6}, c)
+	fillTriangle(dst, image.Point{x - size/2, y + size/3}, image.Point{x - size/2 + 6, y + size/3 - 6}, image.Point{x - size/2 + 6, y + size/3 + 6}, c)
+}
+
+func drawIconLyrics(dst *image.RGBA, x, y, size int, c color.RGBA) {
+	drawRoundedRectBorderAA(dst, x-size, y-size+2, size*2, size*2-4, 8, c, 2)
+	drawLineAA(dst, float64(x-size/2), float64(y-size/3), float64(x+size/2), float64(y-size/3), 2, c)
+	drawLineAA(dst, float64(x-size/2), float64(y), float64(x+size/2), float64(y), 2, c)
+	drawLineAA(dst, float64(x-size/2), float64(y+size/3), float64(x+size/4), float64(y+size/3), 2, c)
+}
+
+func drawIconQueue(dst *image.RGBA, x, y, size int, c color.RGBA) {
+	for i := -1; i <= 1; i++ {
+		drawLineAA(dst, float64(x-size), float64(y+i*7), float64(x+size/2), float64(y+i*7), 2, c)
+	}
+	fillTriangle(dst, image.Point{x + size, y}, image.Point{x + size/2 + 3, y - 7}, image.Point{x + size/2 + 3, y + 7}, c)
+}
+
+func drawIconVolume(dst *image.RGBA, x, y, size int, c color.RGBA) {
+	fillTriangle(dst, image.Point{x - size, y}, image.Point{x - size/3, y - size/2}, image.Point{x - size/3, y + size/2}, c)
+	drawRoundedRect(dst, x-size/3, y-size/2, 7, size, 3, c)
+	drawArc(dst, x+3, y, size/2, -0.65, 0.65, 2, c)
+	drawArc(dst, x+4, y, size, -0.65, 0.65, 2, colorWithAlpha(c, 160))
+}
+
+func drawArc(dst *image.RGBA, cx, cy, r int, start, end float64, thickness float64, c color.RGBA) {
+	steps := int(math.Max(12, float64(r)*2))
+	prevX := float64(cx) + math.Cos(start)*float64(r)
+	prevY := float64(cy) + math.Sin(start)*float64(r)
+	for i := 1; i <= steps; i++ {
+		t := float64(i) / float64(steps)
+		a := start + (end-start)*t
+		x := float64(cx) + math.Cos(a)*float64(r)
+		y := float64(cy) + math.Sin(a)*float64(r)
+		drawLineAA(dst, prevX, prevY, x, y, thickness, c)
+		prevX, prevY = x, y
+	}
+}
+
+func drawReflection(dst *image.RGBA, x, y, w, h, radius int) {
+	for py := 0; py < h/3; py++ {
+		alpha := uint8(22 * math.Pow(1-float64(py)/float64(h/3), 2))
+		for px := 0; px < w; px++ {
+			cov := roundedCoverage(px, py, w, h, float64(radius))
+			if cov > 0 {
+				blendPixel(dst, x+px, y+py, color.RGBA{255, 255, 255, uint8(float64(alpha) * cov)})
+			}
+		}
+	}
+}
+
+func drawInnerHighlight(dst *image.RGBA, x, y, w, h, radius int, c color.RGBA) {
+	band := 16
+	for py := 0; py < h; py++ {
+		for px := 0; px < w; px++ {
+			outer := roundedCoverage(px, py, w, h, float64(radius))
+			inner := roundedCoverage(px-band, py-band, w-2*band, h-2*band, math.Max(0, float64(radius-band)))
+			cov := outer - inner
+			if cov <= 0 {
+				continue
+			}
+			blendPixel(dst, x+px, y+py, colorWithAlpha(c, uint8(float64(c.A)*cov)))
+		}
+	}
+}
+
+func drawShadowRect(dst *image.RGBA, x, y, w, h, radius int, c color.RGBA, blur int) {
+	tmp := newRGBA(dst.Bounds().Dx(), dst.Bounds().Dy())
+	drawRoundedRect(tmp, x, y, w, h, radius, c)
+	gaussianBlur(tmp, blur)
+	stdDraw.Draw(dst, dst.Bounds(), tmp, image.Point{}, stdDraw.Over)
+}
+
+func drawRadialGlow(dst *image.RGBA, cx, cy, w, h int, c color.RGBA) {
+	rx := float64(w) / 2
+	ry := float64(h) / 2
+	minX := cx - w/2
+	maxX := cx + w/2
+	minY := cy - h/2
+	maxY := cy + h/2
+	for y := minY; y <= maxY; y++ {
+		for x := minX; x <= maxX; x++ {
+			dx := (float64(x) - float64(cx)) / rx
+			dy := (float64(y) - float64(cy)) / ry
+			d := dx*dx + dy*dy
+			if d >= 1 {
+				continue
+			}
+			alpha := math.Pow(1-d, 2) * float64(c.A)
+			blendPixel(dst, x, y, color.RGBA{c.R, c.G, c.B, uint8(alpha)})
+		}
+	}
+}
+
+func drawShadowCircle(dst *image.RGBA, cx, cy, r int, c color.RGBA, blur int) {
+	tmp := newRGBA(dst.Bounds().Dx(), dst.Bounds().Dy())
+	drawCircleAA(tmp, cx, cy, r, c)
+	gaussianBlur(tmp, blur)
+	stdDraw.Draw(dst, dst.Bounds(), tmp, image.Point{}, stdDraw.Over)
+}
+
+func drawCircleAA(dst *image.RGBA, cx, cy, r int, c color.RGBA) {
+	for y := cy - r - 1; y <= cy+r+1; y++ {
+		for x := cx - r - 1; x <= cx+r+1; x++ {
+			d := math.Hypot(float64(x-cx), float64(y-cy))
+			cov := clamp01(float64(r) - d + 0.75)
+			if cov <= 0 {
+				continue
+			}
+			blendPixel(dst, x, y, color.RGBA{c.R, c.G, c.B, uint8(float64(c.A) * cov)})
+		}
+	}
+}
+
+func drawCircleBorder(dst *image.RGBA, cx, cy, r int, c color.RGBA, thickness int) {
+	for y := cy - r - thickness; y <= cy+r+thickness; y++ {
+		for x := cx - r - thickness; x <= cx+r+thickness; x++ {
+			d := math.Hypot(float64(x-cx), float64(y-cy))
+			cov := clamp01(float64(thickness) - math.Abs(d-float64(r)) + 0.6)
+			if cov <= 0 {
+				continue
+			}
+			blendPixel(dst, x, y, color.RGBA{c.R, c.G, c.B, uint8(float64(c.A) * cov)})
+		}
+	}
+}
+
+func fillTriangle(dst *image.RGBA, p1, p2, p3 image.Point, c color.RGBA) {
+	minX := minInt(p1.X, minInt(p2.X, p3.X))
+	maxX := maxInt(p1.X, maxInt(p2.X, p3.X))
+	minY := minInt(p1.Y, minInt(p2.Y, p3.Y))
+	maxY := maxInt(p1.Y, maxInt(p2.Y, p3.Y))
+	area := edge(p1, p2, p3)
+	if area == 0 {
+		return
+	}
+	for y := minY; y <= maxY; y++ {
+		for x := minX; x <= maxX; x++ {
+			p := image.Point{x, y}
+			w0 := edge(p2, p3, p)
+			w1 := edge(p3, p1, p)
+			w2 := edge(p1, p2, p)
+			if (w0 >= 0 && w1 >= 0 && w2 >= 0) || (w0 <= 0 && w1 <= 0 && w2 <= 0) {
+				blendPixel(dst, x, y, c)
+			}
+		}
+	}
+}
+
+func edge(a, b, c image.Point) int {
+	return (c.X-a.X)*(b.Y-a.Y) - (c.Y-a.Y)*(b.X-a.X)
+}
+
+func drawLineAA(dst *image.RGBA, x1, y1, x2, y2, thickness float64, c color.RGBA) {
+	minX := int(math.Floor(math.Min(x1, x2) - thickness - 1))
+	maxX := int(math.Ceil(math.Max(x1, x2) + thickness + 1))
+	minY := int(math.Floor(math.Min(y1, y2) - thickness - 1))
+	maxY := int(math.Ceil(math.Max(y1, y2) + thickness + 1))
+	for y := minY; y <= maxY; y++ {
+		for x := minX; x <= maxX; x++ {
+			d := distanceToSegment(float64(x)+0.5, float64(y)+0.5, x1, y1, x2, y2)
+			cov := clamp01(thickness/2 - d + 1)
+			if cov <= 0 {
+				continue
+			}
+			blendPixel(dst, x, y, color.RGBA{c.R, c.G, c.B, uint8(float64(c.A) * cov)})
+		}
+	}
+}
+
+func distanceToSegment(px, py, x1, y1, x2, y2 float64) float64 {
+	dx := x2 - x1
+	dy := y2 - y1
+	if dx == 0 && dy == 0 {
+		return math.Hypot(px-x1, py-y1)
+	}
+	t := ((px-x1)*dx + (py-y1)*dy) / (dx*dx + dy*dy)
+	t = clamp01(t)
+	cx := x1 + t*dx
+	cy := y1 + t*dy
+	return math.Hypot(px-cx, py-cy)
+}
+
 func roundedContains(x, y, w, h, r float64) bool {
 	if x < 0 || y < 0 || x > w || y > h {
 		return false
@@ -561,12 +1309,6 @@ func roundedContains(x, y, w, h, r float64) bool {
 	return true
 }
 
-func dist2(x1, y1, x2, y2 float64) float64 {
-	dx, dy := x1-x2, y1-y2
-	return dx*dx + dy*dy
-}
-
-// roundedCoverage returns 0..1 anti-aliased edge coverage via 4×4 supersampling.
 func roundedCoverage(x, y, w, h int, r float64) float64 {
 	const n = 4
 	hit := 0
@@ -582,209 +1324,71 @@ func roundedCoverage(x, y, w, h int, r float64) float64 {
 	return float64(hit) / float64(n*n)
 }
 
-// pasteRoundedAA composites src onto dst at (ox, oy) with anti-aliased rounded corners.
 func pasteRoundedAA(dst *image.RGBA, src image.Image, ox, oy, w, h, radius int) {
-	rf := float64(radius)
 	for y := 0; y < h; y++ {
 		for x := 0; x < w; x++ {
-			cov := roundedCoverage(x, y, w, h, rf)
+			cov := roundedCoverage(x, y, w, h, float64(radius))
 			if cov <= 0 {
 				continue
 			}
-			sr, sg, sb, sa := src.At(x, y).RGBA()
-			a := uint8((float64(sa>>8) / 255) * 255 * cov)
-			sc := color.RGBA{uint8(sr >> 8), uint8(sg >> 8), uint8(sb >> 8), a}
-			blendPixel(dst, ox+x, oy+y, sc)
+			r, g, b, a := src.At(x, y).RGBA()
+			blendPixel(dst, ox+x, oy+y, color.RGBA{uint8(r >> 8), uint8(g >> 8), uint8(b >> 8), uint8(float64(a>>8) * cov)})
 		}
 	}
 }
 
-func drawRoundedRect(img *image.RGBA, x, y, w, h, radius int, c color.RGBA) {
-	rf := float64(radius)
+func drawRoundedRect(dst *image.RGBA, x, y, w, h, radius int, c color.RGBA) {
 	for py := 0; py < h; py++ {
 		for px := 0; px < w; px++ {
-			cov := roundedCoverage(px, py, w, h, rf)
+			cov := roundedCoverage(px, py, w, h, float64(radius))
 			if cov <= 0 {
 				continue
 			}
-			cc := c
-			cc.A = uint8(float64(c.A) * cov)
-			blendPixel(img, x+px, y+py, cc)
+			blendPixel(dst, x+px, y+py, color.RGBA{c.R, c.G, c.B, uint8(float64(c.A) * cov)})
 		}
 	}
 }
 
-// drawRoundedRectBorderAA draws an anti-aliased ring by subtracting an inset
-// rounded-rect's coverage from the outer one, so only the border band gets painted.
-func drawRoundedRectBorderAA(img *image.RGBA, x, y, w, h, radius int, c color.RGBA, thickness int) {
-	rf := float64(radius)
-	inner := rf - float64(thickness)
+func drawRoundedRectBorderAA(dst *image.RGBA, x, y, w, h, radius int, c color.RGBA, thickness int) {
 	for py := -thickness; py < h+thickness; py++ {
 		for px := -thickness; px < w+thickness; px++ {
-			outerCov := roundedCoverage(px, py, w, h, rf)
-			innerCov := roundedCoverage(px, py, w, h, math.Max(inner, 0))
-			cov := outerCov - innerCov
+			outer := roundedCoverage(px, py, w, h, float64(radius))
+			inner := roundedCoverage(px, py, w, h, math.Max(0, float64(radius-thickness)))
+			cov := outer - inner
 			if cov <= 0 {
 				continue
 			}
-			cc := c
-			cc.A = uint8(float64(c.A) * cov)
-			blendPixel(img, x+px, y+py, cc)
+			blendPixel(dst, x+px, y+py, color.RGBA{c.R, c.G, c.B, uint8(float64(c.A) * cov)})
 		}
 	}
 }
 
-func drawGlow(img *image.RGBA, x, y, w, h, blurR int, c color.RGBA) {
-	tmp := newRGBA(img.Bounds().Dx(), img.Bounds().Dy())
-	drawRoundedRect(tmp, x, y, w, h, 40, c)
-	gaussianBlur(tmp, blurR)
-	b := img.Bounds()
-	for py := b.Min.Y; py < b.Max.Y; py++ {
-		for px := b.Min.X; px < b.Max.X; px++ {
-			gc := tmp.RGBAAt(px, py)
-			if gc.A == 0 {
-				continue
-			}
-			blendPixel(img, px, py, gc)
-		}
-	}
-}
-
-func drawCircleAA(img *image.RGBA, cx, cy, r int, c color.RGBA) {
-	for y := cy - r - 1; y <= cy+r+1; y++ {
-		for x := cx - r - 1; x <= cx+r+1; x++ {
-			d := math.Sqrt(float64((x-cx)*(x-cx) + (y-cy)*(y-cy)))
-			cov := clamp01(float64(r) - d + 0.5)
-			if cov <= 0 {
-				continue
-			}
-			cc := c
-			cc.A = uint8(float64(c.A) * cov)
-			blendPixel(img, x, y, cc)
-		}
-	}
-}
-
-func clamp01(v float64) float64 {
-	if v < 0 {
-		return 0
-	}
-	if v > 1 {
-		return 1
-	}
-	return v
-}
-
-// ─── Frosted Glass ───────────────────────────────────────────────────────────
-//
-// A believable glass card needs four things beyond a blurred+lightened
-// backdrop sample: (1) grain, because real frosted glass diffuses light
-// unevenly rather than producing a perfectly flat gradient; (2) a soft
-// highlight biased toward the top edge, mimicking a single overhead light
-// source; (3) a slightly darker inset ring just inside the border, so the
-// glass reads as having *thickness* rather than being a flat cutout; and
-// (4) the light outer rim your original already had. Each is cheap and
-// layers on top of the existing blur-and-composite approach — nothing here
-// replaces your box-blur pipeline, it just adds three passes after it.
-
-// noiseSeed keeps grain deterministic per-pixel without a PRNG dependency;
-// a plain hash of (x,y) is enough since we only need visual dither, not
-// statistical randomness.
-func noiseSeed(x, y int) float64 {
-	h := uint32(x)*374761393 + uint32(y)*668265263
-	h = (h ^ (h >> 13)) * 1274126177
-	h = h ^ (h >> 16)
-	return float64(h%1000) / 1000.0 // 0..1
-}
-
-// drawFrostedGlassCard renders a genuine "frosted glass" panel: it samples the
-// already-blurred backdrop under the card region, blurs that region further,
-// lightens it, adds fine grain and a top-biased highlight, composites it back
-// with a translucent alpha, then finishes with an inset shadow ring plus a
-// 1px light outer border — this is what actually produces the Apple/Spotify
-// glass look, rather than a single flat semi-transparent rectangle.
-func drawFrostedGlassCard(img *image.RGBA, x1, y1, x2, y2, radius int) {
-	w, h := x2-x1, y2-y1
-	if w <= 0 || h <= 0 {
-		return
-	}
-
-	region := newRGBA(w, h)
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			region.SetRGBA(x, y, img.RGBAAt(x1+x, y1+y))
-		}
-	}
-	gaussianBlur(region, 18)
-
-	rf := float64(radius)
-	for y := 0; y < h; y++ {
-		for x := 0; x < w; x++ {
-			cov := roundedCoverage(x, y, w, h, rf)
-			if cov <= 0 {
-				continue
-			}
-			rc := region.RGBAAt(x, y)
-
-			// Grain: +/-4 levels per channel, cheap and deterministic.
-			grain := int(noiseSeed(x1+x, y1+y)*8) - 4
-
-			// Top-biased highlight: strongest near y=0, fading to ~40% of
-			// its peak by mid-card, gone by the lower third. This is what
-			// makes the panel look lit from above instead of uniformly
-			// milky, which was the single biggest tell that the old
-			// version was "blur + lighten" rather than "glass."
-			highlightT := 1.0 - clamp01(float64(y)/(float64(h)*0.65))
-			highlight := int(26 * highlightT * highlightT)
-
-			glass := color.RGBA{
-				R: lighten(rc.R, 22+highlight+grain),
-				G: lighten(rc.G, 22+highlight+grain),
-				B: lighten(rc.B, 26+highlight+grain),
-				A: uint8(185 * cov),
-			}
-			blendPixel(img, x1+x, y1+y, glass)
-		}
-	}
-
-	// Inset shadow ring: a soft dark band just inside the edge gives the
-	// glass apparent thickness. Same subtract-two-coverages trick as
-	// drawRoundedRectBorderAA, just pulled in from the edge and blurred
-	// mentally by using a wide, low-alpha band rather than a hard 1px line.
-	insetBand := math.Max(float64(radius)*0.4, 6)
+func drawHorizontalGradientRoundedRect(dst *image.RGBA, x, y, w, h, radius int, left, right color.RGBA) {
 	for py := 0; py < h; py++ {
 		for px := 0; px < w; px++ {
-			outerCov := roundedCoverage(px, py, w, h, rf)
-			innerCov := roundedCoverage(px, py, w, h, math.Max(rf-insetBand, 0))
-			cov := outerCov - innerCov
+			cov := roundedCoverage(px, py, w, h, float64(radius))
 			if cov <= 0 {
 				continue
 			}
-			cc := color.RGBA{0, 0, 0, uint8(28 * cov)}
-			blendPixel(img, x1+px, y1+py, cc)
+			t := float64(px) / math.Max(1, float64(w-1))
+			c := mixColor(left, right, t)
+			blendPixel(dst, x+px, y+py, color.RGBA{c.R, c.G, c.B, uint8(float64(c.A) * cov)})
 		}
 	}
-
-	drawRoundedRectBorderAA(img, x1, y1, w, h, radius, color.RGBA{255, 255, 255, 60}, 1)
 }
 
-// ─── Compositing ─────────────────────────────────────────────────────────────
-
-func blendPixel(img *image.RGBA, x, y int, c color.RGBA) {
+func blendPixel(img *image.RGBA, x, y int, src color.RGBA) {
 	b := img.Bounds()
-	if x < b.Min.X || x >= b.Max.X || y < b.Min.Y || y >= b.Max.Y {
-		return
-	}
-	if c.A == 0 {
+	if x < b.Min.X || x >= b.Max.X || y < b.Min.Y || y >= b.Max.Y || src.A == 0 {
 		return
 	}
 	dst := img.RGBAAt(x, y)
-	img.SetRGBA(x, y, blendOver(c, dst))
+	img.SetRGBA(x, y, blendOver(src, dst))
 }
 
 func blendOver(src, dst color.RGBA) color.RGBA {
-	sa := float64(src.A) / 255.0
-	da := float64(dst.A) / 255.0
+	sa := float64(src.A) / 255
+	da := float64(dst.A) / 255
 	oa := sa + da*(1-sa)
 	if oa == 0 {
 		return color.RGBA{}
@@ -797,24 +1401,134 @@ func blendOver(src, dst color.RGBA) color.RGBA {
 	}
 }
 
-// ─── I/O helpers ─────────────────────────────────────────────────────────────
+func dist2(x1, y1, x2, y2 float64) float64 {
+	dx, dy := x1-x2, y1-y2
+	return dx*dx + dy*dy
+}
+
+func luminance(c color.RGBA) float64 {
+	return (0.2126*float64(c.R) + 0.7152*float64(c.G) + 0.0722*float64(c.B)) / 255
+}
+
+func saturation(c color.RGBA) float64 {
+	r := float64(c.R) / 255
+	g := float64(c.G) / 255
+	b := float64(c.B) / 255
+	maxV := math.Max(r, math.Max(g, b))
+	minV := math.Min(r, math.Min(g, b))
+	if maxV == 0 {
+		return 0
+	}
+	return (maxV - minV) / maxV
+}
+
+func boostColor(c color.RGBA, satBoost, lumBoost float64) color.RGBA {
+	r := float64(c.R)
+	g := float64(c.G)
+	b := float64(c.B)
+	gray := (r + g + b) / 3
+	r = gray + (r-gray)*satBoost
+	g = gray + (g-gray)*satBoost
+	b = gray + (b-gray)*satBoost
+	return color.RGBA{clampByte(r * lumBoost), clampByte(g * lumBoost), clampByte(b * lumBoost), 255}
+}
+
+func mixColor(a, b color.RGBA, t float64) color.RGBA {
+	t = clamp01(t)
+	return color.RGBA{
+		R: uint8(float64(a.R)*(1-t) + float64(b.R)*t),
+		G: uint8(float64(a.G)*(1-t) + float64(b.G)*t),
+		B: uint8(float64(a.B)*(1-t) + float64(b.B)*t),
+		A: uint8(float64(a.A)*(1-t) + float64(b.A)*t),
+	}
+}
+
+func darkenColor(c color.RGBA, factor float64) color.RGBA {
+	return color.RGBA{clampByte(float64(c.R) * factor), clampByte(float64(c.G) * factor), clampByte(float64(c.B) * factor), c.A}
+}
+
+func lightenColor(c color.RGBA, by int) color.RGBA {
+	return color.RGBA{lighten(c.R, by), lighten(c.G, by), lighten(c.B, by), c.A}
+}
+
+func colorWithAlpha(c color.RGBA, a uint8) color.RGBA {
+	c.A = a
+	return c
+}
+
+func lighten(v uint8, amt int) uint8 {
+	return uint8(clampInt(0, 255, int(v)+amt))
+}
+
+func clamp01(v float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
+}
+
+func clampInt(minV, maxV, v int) int {
+	if v < minV {
+		return minV
+	}
+	if v > maxV {
+		return maxV
+	}
+	return v
+}
+
+func clampByte(v float64) uint8 {
+	if v < 0 {
+		return 0
+	}
+	if v > 255 {
+		return 255
+	}
+	return uint8(v)
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func hashNoise(x, y int) float64 {
+	h := uint32(x)*374761393 + uint32(y)*668265263
+	h = (h ^ (h >> 13)) * 1274126177
+	h ^= h >> 16
+	return float64(h%1000) / 1000
+}
 
 func downloadFile(url, dest string) error {
+	if strings.TrimSpace(url) == "" {
+		return fmt.Errorf("empty artwork URL")
+	}
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
 		return err
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
 	req.Header.Set("Accept", "image/avif,image/webp,image/apng,image/*,*/*;q=0.8")
-	req.Header.Set("Referer", "https://www.youtube.com/")
-
+	req.Header.Set("Referer", "https://music.youtube.com/")
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return fmt.Errorf("HTTP %d", resp.StatusCode)
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("http %d", resp.StatusCode)
 	}
 	f, err := os.Create(dest)
 	if err != nil {
@@ -831,20 +1545,59 @@ func loadImage(path string) (image.Image, error) {
 		return nil, err
 	}
 	defer f.Close()
+	decoders := []func(io.Reader) (image.Image, error){jpeg.Decode, webp.Decode, png.Decode}
+	var firstErr error
+	for i, dec := range decoders {
+		if _, err := f.Seek(0, 0); err != nil {
+			return nil, err
+		}
+		img, err := dec(f)
+		if err == nil {
+			return img, nil
+		}
+		if i == 0 {
+			firstErr = err
+		}
+	}
+	return nil, firstErr
+}
 
-	img, err := jpeg.Decode(f)
-	if err == nil {
-		return img, nil
+func dominantStops(src image.Image, count int) []color.RGBA {
+	sample := coverCropResize(src, 36, 36)
+	type stop struct {
+		color color.RGBA
+		score float64
 	}
-	if _, seekErr := f.Seek(0, 0); seekErr != nil {
-		return nil, seekErr
+	stops := make([]stop, 0, 36*36)
+	for y := 0; y < 36; y++ {
+		for x := 0; x < 36; x++ {
+			c := sample.RGBAAt(x, y)
+			stops = append(stops, stop{color: c, score: saturation(c) + (1 - math.Abs(luminance(c)-0.5))})
+		}
 	}
-	img, err = webp.Decode(f)
-	if err == nil {
-		return img, nil
+	sort.Slice(stops, func(i, j int) bool { return stops[i].score > stops[j].score })
+	out := make([]color.RGBA, 0, count)
+	for _, s := range stops {
+		good := true
+		for _, existing := range out {
+			if colorDistance(existing, s.color) < 46 {
+				good = false
+				break
+			}
+		}
+		if good {
+			out = append(out, s.color)
+			if len(out) == count {
+				break
+			}
+		}
 	}
-	if _, seekErr := f.Seek(0, 0); seekErr != nil {
-		return nil, seekErr
-	}
-	return png.Decode(f)
+	return out
+}
+
+func colorDistance(a, b color.RGBA) float64 {
+	dr := float64(int(a.R) - int(b.R))
+	dg := float64(int(a.G) - int(b.G))
+	db := float64(int(a.B) - int(b.B))
+	return math.Sqrt(dr*dr + dg*dg + db*db)
 }
