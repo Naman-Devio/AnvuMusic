@@ -1,0 +1,1043 @@
+name: "🇮🇳 हिन्दी"
+
+# buttons — layout tuned for wide thumbs & instant scan (player deck / hub / help)
+CONFIRM_RESUME_BTN: "▶ जारी रखें"
+CONFIRM_UNMUTE_BTN: "🔊 आवाज़ खोलें"
+CONFIRM_STOP_BTN: "■ रोकें"
+ADD_ME_BTN: "˹ᴛᴧᴘ тᴏ sᴇᴇ ᴍᴧɢɪᴄ˼"
+BROADCAST_CANCEL_BTN: "✕ प्रसारण रद्द करें"
+CLOSE_BTN: "✧ बंद करें ✧"
+DOWNLOAD_CANCEL_BTN: "✕ डाउनलोड रद्द करें"
+GC_HELP_BTN: "📚 डीएम · पूर्ण गाइड"
+GC_UPDATES_BTN: "📢 अपडेट्स"
+
+START_HELP_BTN: "📖 कमांड्स"
+START_DOCS_BTN: "❔ डीएम में सहायता"
+START_REFRESH_BTN: "↻ पैनल रिफ्रेश करें"
+SOURCE_BTN: "◎ सोर्स"
+UPDATES_BTN: "◎ अपडेट्स"
+SUPPORT_BTN: "◎ सहायता"
+OWNER_BTN: "👑 ओनर"
+LANGUAGE_BTN: "🌐 भाषा"
+HELP_BTN: "❔ सहायता"
+
+HELP_PUBLIC_BTN: "🌐 सभी"
+HELP_ADMINS_BTN: "🎛 डीजे · एडमिन"
+HELP_OWNER_BTN: "👑 ओनर"
+HELP_SUDOERS_BTN: "⚡ सूडो"
+
+HELP_HOME_PANEL_BTN: "⌂ होम"
+HELP_BACK_CATEGORIES_BTN: "✧ wᴧᴄᴋ ✧"
+
+# inline player (two rows: transport strip + replay/stop)
+PLAY_BTN_RESUME: "▶"
+PLAY_BTN_PAUSE: "⏸"
+PLAY_BTN_SKIP: "⏭"
+PLAY_BTN_REPLAY: "↻"
+PLAY_BTN_STOP: "⏹"
+
+# basically this string used in /command [bool]
+invalid_bool: "⚠️ <b>अमान्य मान।</b>\n'enable' या 'disable' का उपयोग करें।"
+
+active_chats_info: "📊 <b>सक्रिय चैट:</b>\n\nबॉट सिस्टम में कुल {count} सक्रिय चैट हैं।"
+active_chats_info_with_broken: "📊 <b>सक्रिय चैट:</b>\n\nबॉट सिस्टम में कुल {count} सक्रिय चैट हैं, लेकिन उनमें से {broken} को सही ढंग से प्रदर्शित करने में समस्या हो सकती है।"
+
+
+# 🚫 Assistant Restricted / Banned
+assistant_restricted_warning: |
+  ⚠️ <b>असिस्टेंट प्रतिबंधित है</b>
+
+  असिस्टेंट {assistant} (आईडी: <code>{id}</code>) को इस चैट में <b>बैन</b> या प्रतिबंधित कर दिया गया है।
+  इसके जारी रहने पर मैं संगीत नहीं बजा सकता, कतार प्रबंधित नहीं कर सकता, या ट्रैक साफ़ नहीं कर सकता।
+
+  <i>सभी संगीत सुविधाओं को पुनर्स्थापित करने के लिए असिस्टेंट से बैन हटाएं 🎵</i>
+
+# 🧩 Common auth messages
+auth_no_user: "⚠️ कृपया एक यूजर प्रदान करें — उपयोग करें:\n{cmd} [user_id] या किसी यूजर के संदेश का उत्तर दें।"
+user_extract_fail: "⚠️ उस यूजर को प्राप्त करने में असमर्थ: {error}"
+auth_limit_reached: "⚠️ इस चैट ने अधिकतम अधिकृत यूजर सीमा ({limit}) तक पहुँचل ली है। कृपया नया यूजर जोड़ने से पहले किसी को हटाएं।"
+already_authed: "⚠️ वह यूजर पहले से अधिकृत है — उन्हें दोबारा जोड़ने की आवश्यकता नहीं है।"
+
+# 🤖 Add auth
+cannot_authorize_user: "⚠️ इस यूजर को अधिकृत नहीं किया जा सकता है।\nबॉट ओनर, बॉट स्वयं, या आप खुद को प्राधिकरण की आवश्यकता नहीं है।"
+addauth_user_is_admin: "⚠️ यह यूजर पहले से एक चैट एडमिनिस्ट्रेटर है। किसी प्राधिकरण की आवश्यकता नहीं है।"
+addauth_bot_user: "🤖 आप अधिकृत सूची में बॉट नहीं जोड़ सकते — अधिकृत यूजर इंसान होने चाहिए!"
+addauth_add_fail: "❌ अधिकृत यूजर जोड़ने में विफल: {error}"
+addauth_success_with_count: "✅ {user} को जोड़ा गया।\nअब {count}/{limit} अधिकृत यूजर हैं।"
+addauth_success: "✅ अधिकृत यूजर सूची में {user} को सफलतापूर्वक जोड़ा गया।"
+
+# 🤖 Bot Added to Chat
+bot_added_normal: "🎵 मुझे जोड़ने के लिए धन्यवाद! संगीत बजाना शुरू करने के लिए /play [song] का उपयोग करें।"
+
+# 🛠️ Bot Added During Maintenance
+bot_added_maintenance: "⚠️ मैं वर्तमान में मेंटेनेंस के अधीन हूं और जल्द ही वापस आऊंगा। आपके धैर्य के लिए धन्यवाद! ⏰"
+maint_reason_generic: "<i>📝 कारण: {reason}</i>"
+
+# ⚠️ Bot Demotion
+bot_demotion_goodbye: |
+  <b>⚠️ अनुमति समाप्त</b>
+
+  मुझे <b>एडमिन से हटा दिया गया है</b> और अब मैं अपने कार्य नहीं कर सकता।
+  उचित अधिकारों के बिना, मैं यहाँ काम करने में असमर्थ हूँ, इसलिए मैं <i>अब चैट छोड़ रहा हूँ</i>।
+
+  <b>अलविदा 👋</b>
+
+broadcast_already_running: "⚠️ एक प्रसारण पहले से चल रहा है।\n\nकृपया इसके पूरा होने की प्रतीक्षा करें या पहले इसका उपयोग करके इसे रद्द करें:\n• <code>/broadcast -cancel</code>\n• या प्रगति संदेश पर रद्द करें बटन पर क्लिक करें"
+broadcast_parse_failed: "❌ प्रसारण कमांड पार्स करने में विफल:\n<code>{error}</code>"
+broadcast_no_content: "⚠️ प्रसारण के लिए कोई सामग्री प्रदान नहीं की गई।\n\n<b>उपयोग:</b> <code>{cmd} [text or reply to message]</code>\n\n<b>उदाहरण:</b>\n<code>{cmd} सभी को नमस्कार!</code>"
+broadcast_fetch_chats_failed: "❌ परोसी गई चैट लाने में विफल:\n<code>{error}</code>"
+broadcast_fetch_users_failed: "❌ परोसी गई यूजर लाने में विफल:\n<code>{error}</code>"
+broadcast_no_targets: "⚠️ प्रसारण के लिए कोई लक्ष्य नहीं मिला।\n\nसुनिश्चित करें कि आपने फ़्लैग के साथ सभी लक्ष्यों को बाहर नहीं किया है।"
+broadcast_initializing: "📡 प्रसारण प्रारंभ हो रहा है...\n\nकृपया प्रतीक्षा करें..."
+broadcast_cancelled_header: "🚫 प्रसारण रद्द कर दिया गया"
+broadcast_completed_header: "✅ प्रसारण पूर्ण हुआ"
+broadcast_progress_header: "📡 प्रसारण हो रहा है..."
+broadcast_total_chats: "📊 कुल चैट: {done}/{total} ({progress}%)"
+broadcast_total_users: "👥 कुल यूजर: {done}/{total} ({progress}%)"
+broadcast_failed_chats: "❌ विफल चैट: {count}"
+broadcast_failed_users: "❌ विफल यूजर: {count}"
+broadcast_delay: "⏱ देरी: {delay}s"
+broadcast_elapsed: "⏰ बीता हुआ समय: {elapsed}"
+broadcast_eta: "⏳ अनुमानित समय: {eta}"
+broadcast_success_rate: "✨ सफलता दर: {rate}% ({sent}/{total})"
+broadcast_not_running: "ℹ️ वर्तमान में कोई प्रसारण नहीं चल रहा है।"
+broadcast_cancel_success: "🚫 प्रसारण सफलतापूर्वक रद्द कर दिया गया।"
+broadcast_cancel_owner_only: "⚠️ केवल ओनर ही प्रसारण रद्द कर सकता है।"
+broadcast_cancel_none_running: "ℹ️ वर्तमान में कोई प्रसारण नहीं चल रहा है।"
+broadcast_cancel_done: "🚫 प्रसारण रद्द कर दिया गया।"
+
+# 🎧 CPlay (Channel Play)
+
+cplay_id_not_set: "⚠️ cplay आईडी सेट नहीं है।\nइसे सेट करने के लिए <code>/cplay --set &lt;chat_id&gt;</code> का उपयोग करें।"
+cplay_usage: "<b>उपयोग:</b> <code>/cplay --set &lt;channel_id&gt;</code>"
+cplay_invalid_chat_id: "<b>अमान्य चैट आईडी:</b> कृपया चैनल के लिए एक मान्य पूर्णांक आईडी प्रदान करें।"
+cplay_resolve_peer_fail: "<b>पीयर हल करने में विफल:</b> चैनल विवरण प्राप्त नहीं किया जा सका। सुनिश्चित करें कि मैं इस चैनल तक पहुँच सकता हूँ।"
+cplay_invalid_target: "<b>अमान्य लक्ष्य:</b> प्रदान की गई आईडी एक मान्य चैनल नहीं है।"
+cplay_channel_not_accessible: "<b>चैनल तक पहुँच नहीं है:</b> चैनल की जानकारी पुनः प्राप्त नहीं की जा सकी। कृपया सुनिश्चित करें कि मैं लक्षित चैनल में एडमिन हूँ।"
+cplay_save_error: "<b>त्रुटि:</b> CPlay सेटिंग्स सहेजने में विफल।"
+cplay_enabled: "✅ <b>चैनल प्ले सक्षम है।</b> अब सभी <code>/c</code> कमांड चैनल <code>{channel_id}</code> में काम करेंगे।"
+
+# Callback handler messages
+invalid_request: "⚠️ अमान्य अनुरोध।"
+unknown_action: "⚠️ अज्ञात कार्रवाई।"
+download_cancelled: "✅ डाउनलोड रद्द कर दिया गया।"
+no_download_to_cancel: "ℹ️ रद्द करने के लिए कोई डाउनलोड नहीं है।"
+
+# Pause callback
+cb_pause_success: "⏸️ ट्रैक {position} पर रोक दिया गया"
+cb_pause_message: |
+  <b>⏸️ ट्रैक रुका हुआ है</b>
+
+  <b>▫ ट्रैक:</b> <a href="{url}">{title}</a>
+  <b>▫ स्थिति:</b> {position} / {duration}
+  <b>▫ इनके द्वारा रोका गया:</b> {user}
+
+# Resume callback
+cb_already_playing: "ℹ️ ट्रैक पहले से चल रहा है।"
+cb_resume_failed: "❌ प्लेबैक फिर से शुरू करने में विफल।"
+cb_resume_success: "▶️ {position} पर फिर से शुरू हुआ।"
+cb_resume_message: |
+  <b>🎵 अब चल रहा है:</b>
+
+  <b>ट्रैक:</b> <a href="{url}">{title}</a>
+  <b>अवधि:</b> {duration}
+  <b>इनके द्वारा पुनः शुरू किया गया:</b> {user}
+
+# Replay callback
+cb_replaying: "🔁 <b>वर्तमान ट्रैक पुनः चलाया जा रहा है...</b>"
+cb_replay_failed: "❌ ट्रैक रीप्ले करने में विफल।"
+cb_replay_success: "🔁 ट्रैक रीप्ले किया गया।"
+cb_replay_edited: "🔁 {user} द्वारा ट्रैक रीप्ले किया गया।"
+
+# Skip callback
+cb_skip_queue_empty: "⏹️ प्लेबैक बंद — कतार खाली है।"
+cb_skip_download_failed: "❌ अगला ट्रैक डाउनलोड करने में विफल।"
+cb_skip_play_failed: "❌ अगला ट्रैक चलाने में विफल।"
+cb_skip_success: "⏭️ ट्रैक छोड़ दिया गया।"
+cb_skip_edited: "⏭️ {user} द्वारा छोड़ा गया"
+
+# Stop callback
+cb_stop_success: "⏹️ प्लेबैक बंद कर दिया गया।"
+
+# Mute/Unmute callback
+cb_mute_success: "🔇 म्यूट कर दिया गया।"
+cb_mute_message: |
+  <b>🔇 प्लेबैक म्यूट है</b>
+
+  <b>ट्रैक:</b> <a href="{url}">{title}</a>
+  <b>इनके द्वारा म्यूट किया गया:</b> {user}
+
+cb_unmute_success: "🔊 अनम्यूट किया गया।"
+
+cb_seek_success: "⏩ {seconds} सेकंड आगे बढ़ाया गया"
+cb_seek_near_end: "⚠️ {seconds} सेकंड आगे नहीं बढ़ाया जा सकता — अंत तक पहुँचने वाला है।"
+cb_seek_edited: "⏩ {seconds} सेकंड आगे बढ़ाया गया — {user} द्वारा"
+
+cb_seekback_success: "⏪ {seconds} सेकंड पीछे किया गया"
+cb_seekback_edited: "⏪ {seconds} सेकंड पीछे किया गया — {user} द्वारा"
+
+# 🗑️ Delete auth
+del_auth_not_authorized: "⚠️ वह यूजर अधिकृत नहीं है — हटाने के लिए कुछ नहीं है।"
+del_auth_remove_fail: "❌ अधिकृत यूजर को हटाने में विफल: <code>{error}</code>"
+del_auth_success: "✅ अधिकृत यूजर सूची से {user} को सफलतापूर्वक हटाया गया।"
+
+# 📜 Auth list
+authlist_fetch_fail: "❌ अधिकृत यूजर सूची प्राप्त करने में विफल: <code>{error}</code>"
+authlist_empty: "ℹ️ इस चैट में कोई अधिकृत यूजर नहीं हैं।"
+authlist_fetching: "⏳ अधिकृत यूजर सूची लाई जा रही है..."
+authlist_header: "<b>अधिकृत यूजर:</b>"
+authlist_user_fail: "{index}. <code>{user_id}</code> (यूजर जानकारी नहीं ला सका)"
+authlist_user_entry: "{index}. {user} (<code>{user_id}</code>)"
+authlist_total: "<b>कुल:</b> {count} यूजर"
+
+autoleave_fetch_fail: "⚠️ <b>ऑटो-लीव स्थिति लाने में विफल।</b>"
+autoleave_status: "🏃‍♂️ <b>ऑटो-लीव नियंत्रण</b>\n\nसक्षम होने पर, असिस्टेंट स्वचालित रूप से चैट छोड़ देगा।\nउपयोग: {cmd} [enable|disable]\nवर्तमान स्थिति: {action}"
+autoleave_already: "⚠️ ऑटो-लीव पहले से {action} है"
+autoleave_update_fail: "⚠️ <b>ऑटो-लीव स्थिति अपडेट करने में विफल।</b>"
+autoleave_updated: "🏃‍♂️ ऑटो-लीव को {action} कर दिया गया है"
+
+enabled: "सक्षम है"
+disabled: "अक्षम है"
+
+bug_usasge: "⚠️ कृपया बग का वर्णन करें। उपयोग: {cmd} <problem> या किसी संदेश का उत्तर दें।"
+bug_thanks: "✅ आपकी बग रिपोर्ट के लिए धन्यवाद! इसे डेवलपर्स को भेज दिया गया है।"
+
+bug_report_format: |
+  <b>🐞 नई बग रिपोर्ट</b>
+
+  <b>प्रारंभकर्ता:</b> {user} (<code>{user_id}</code>)
+  <b>चैट:</b> {chat} (<code>{chat_id}</code>)
+
+  <b>रिपोर्ट:</b>
+  <pre>{report}</pre>
+  
+clear_no_active: "⚠️ <b>साफ करने के लिए कोई सक्रिय प्लेबैक या कतार नहीं है।</b>"
+clear_success: "✅ {user} द्वारा कतार को साफ़ कर दिया गया है।\n<i>नए गाने जोड़ने से पहले आप <code>/{cmd}</code> का उपयोग करके इसे पुनर्स्थापित कर सकते हैं</i>"
+
+err_assistant_banned: |
+  <b>🚫 असिस्टेंट प्रतिबंधित</b>
+
+  मैं संगीत नहीं बजा सकता क्योंकि {user} (UserID: <code>{id}</code>) इस चैट से <b>बैन</b> या <b>हटाए</b> गए हैं।
+
+  ✅ क्या आपने उन्हें पहले ही अनबैन कर दिया है? रीफ्रेश करने के लिए /reload का उपयोग करें।
+
+err_admin_permission_required: |
+  ⚠️ <b>एडमिन अनुमति आवश्यक है</b>
+
+  मुझे इस चैट में सदस्यों को प्रबंधित करने और जांचने के लिए एडमिन एक्सेस की आवश्यकता है।
+  
+  ➤ <b>मुझे</b> <code>चैट प्रबंधित करें / यूजर आमंत्रित करें</code> <b>अनुमति के साथ प्रमोट करें।</b>
+
+err_assistant_get_failed: |
+  ⚠️ सिस्टम इस चैट को असिस्टेंट असाइन नहीं कर सका।
+
+  यह आमतौर पर एक अस्थायी समस्या है और दोबारा प्रयास करने से ठीक हो जानी चाहिए।
+
+  <b>➡️ कृपया अपना कमांड पुनः प्रयास करें।</b>
+
+  यदि यह बार-बार हो रहा है, तो कृपया सहायता से संपर्क करें ताकि हम आपकी सहायता कर सकें।
+  
+err_assistant_join_rate_limited: |
+  ⚠️ असिस्टेंट इस चैट में शामिल नहीं हो सकता क्योंकि यह अनुमति प्राप्त समूहों की अधिकतम संख्या तक पहुँच गया है।
+
+err_assistant_join_request_sent: |
+  ⚠️ असिस्टेंट ने जुड़ने का अनुरोध भेजा, लेकिन मैं इसे स्वतः स्वीकृत नहीं कर सका।
+
+  ✅ कृपया अनुरोध को मैन्युअल रूप से स्वीकृत करें, फिर पुनः प्रयास करें।
+
+err_assistant_invite_link_fetch: |
+  ⚠️ आमंत्रण लिंक लाने में विफल:
+  {error}
+
+err_assistant_invite_failed: |
+  ⚠️ असिस्टेंट इस चैट में शामिल होने में विफल रहा:
+  {error}
+
+err_connection_timeout: |
+  ⚠️ <b>वॉयसचैट कनेक्शन टाइमआउट</b>
+
+  टेलीग्राम इस समय वॉयस चैट कनेक्शन का ठीक से जवाब नहीं दे रहा है।
+
+  यदि यह बार-बार हो रहा है, तो वॉयस चैट को समाप्त करें और इसे फिर से शुरू करें, फिर पुनः प्रयास करें।
+
+err_no_active_voicechat: |
+  🎙️ <b>कोई सक्रिय वॉयस चैट नहीं है</b>
+
+  मैं शामिल नहीं हो सकता — कृपया पहले वॉयस चैट शुरू करें।
+
+  क्या पहले ही शुरू कर चुके हैं? रीफ्रेश करने के लिए /reload का उपयोग करें।
+
+err_fetch_failed: |
+  ⚠️ चैट की जानकारी लाने में विफल:
+  {error}
+
+err_peer_resolve_failed: |
+  ⚠️ पीयर जानकारी हल करने में विफल। बाद में पुनः प्रयास करें या असिस्टेंट को फिर से जोड़ें।
+
+err_rtmp_missing_params: |
+  <b>⚠️ RTMP विवरण गायब हैं</b>
+
+  ऐसा लगता है कि इस चैट में एक <b>RTMP स्ट्रीम</b> सक्रिय है, लेकिन आपने आवश्यक
+  <b>RTMP URL</b> या <b>स्ट्रीम की</b> प्रदान नहीं की है। इनके बिना, मैं RTMP पर संगीत स्ट्रीम करना शुरू नहीं कर सकता।
+
+  <b>उपयोग करें:</b> <code>/setrtmp [chat_id] [url+key]</code>
+
+  📌 एक बार RTMP विवरण सेट हो जाने के बाद, आप स्ट्रीमिंग शुरू कर सकते हैं।  
+  ➡️ यदि आप RTMP का उपयोग नहीं करना चाहते हैं, तो इसके बजाय नियमित वॉयस चैट पर स्विच करें।
+  
+err_unknown: |
+  ⚠️ अज्ञात त्रुटि आई:
+  {error}
+
+err_fetch_tracks: |
+  ⚠️ <b>ट्रैक विवरण लाने में विफल।</b>
+  कृपया बाद में पुनः प्रयास करें।
+
+err_download_internal: |
+  ⚠️ एक अप्रत्याशित आंतरिक त्रुटि के कारण <b>डाउनलोड विफल</b> हो गया।
+  कृपया बाद में पुनः प्रयास करें।
+  
+flood_seconds: "⏳ बहुत तेज़! {duration} सेकंड में पुनः प्रयास करें।"
+flood_minutes: "⏳ इस कमांड का दोबारा उपयोग करने से पहले कृपया {duration} मिनट प्रतीक्षा करें।"
+
+help_private_only: |
+  <blockquote>
+  <b>केवल डीएम</b> — पूर्ण कमांड एटलस, सिंटैक्स नोट्स और श्रेणी बटनों के लिए मेरे साथ एक निजी चैट खोलें।
+  </blockquote>
+
+  <i>समूह साफ़ रहते हैं; आपकी सेटिंग आपकी रहती हैं।</i>
+
+help_main: |
+  <blockquote expandable>
+  <b>◎ कमांड एटलस</b>
+
+  नीचे एक लेन चुनें — प्रत्येक कार्ड वास्तविक स्लैश कमांड सूचीबद्ध करता है।
+  · <b>सभी</b> — play, queue, ping, bug, reload…
+  · <b>डीजे · एडमिन</b> — skip, pause, seek, loop, speed…
+  · <b>ओनर / सूडो</b> — फ्लीट कंट्रोल और डायग्नोस्टिक्स।
+  </blockquote>
+
+  <i>सुझाव:</i> किसी भी चैट में आप <code>/help &lt;command&gt;</code> या <code>/play -h</code> भी चला सकते हैं।
+
+jump_no_active: "⚠️ कूदने के लिए कोई सक्रिय ट्रैक नहीं है।"
+jump_usage: "⚠️ कृपया सेकंड प्रदान करें।\nउदाहरण: <code>{cmd} 120</code>"
+jump_invalid_position: "⚠️ अमान्य स्थिति।\nउदाहरण: <code>{cmd} 120</code>"
+jump_too_close_end: "⚠️ <b>{position}</b> पर नहीं जा सकता — यह ट्रैक के अंत के बहुत करीब है।"
+jump_failed: "❌ <b>{position}</b> पर जाने में विफल।\nत्रुटि: <code>{error}</code>"
+jump_success: "⏩ <u>{duration}</u> में से <u>{position}</u> पर पहुँचा गया।"
+
+lang_same: "ℹ️ आप पहले से ही इस भाषा का उपयोग कर रहे हैं।"
+lang_select: "🌐 अपनी पसंदीदा भाषा चुनें:"
+lang_fail: "❌ भाषा अपडेट करने में विफल। कृपया बाद में पुनः प्रयास करें।"
+lang_success: "✅ भाषा सफलतापूर्वक {lang_name} में अपडेट कर दी गई है।"
+
+logger_playback_started: "प्लेबैक शुरू हुआ"
+logger_playback_queued: "प्लेबैक कतार में जोड़ा गया"
+
+logger_bot_added: |
+  🤖 <b>नए समूह में बॉट जोड़ा गया</b>
+  
+  <b>समूह का नाम:</b> {group_name}
+  <b>समूह आईडी:</b> {group_id}
+  <b>समूह यूजरनेम:</b> {group_username}
+
+  <b>इनके द्वारा जोड़ा गया:</b> {added_by_name}
+  <b>यूजर आईडी:</b> {added_by_id}
+  <b>यूजर यूजरनेम:</b> {added_by_username}
+
+
+logger_bot_removed: |
+
+  🤖 <b>समूह से बॉट हटाया गया</b>
+
+  <b>समूह का नाम:</b> {group_name}
+  <b>समूह आईडी:</b> {group_id}
+  <b>समूह यूजरनेम:</b> {group_username}
+
+  <b>इनके द्वारा हटाया गया:</b> {removed_by_name}
+  <b>यूजर आईडी:</b> {removed_by_id}
+  <b>यूजर यूजरनेम:</b> {removed_by_username}
+
+  
+logger_bot_started: |
+  ▶️ <b>{mention} ने बॉट शुरू किया</b>
+
+  <b>यूजरनेम:</b> {user_username}
+  <b>आईडी:</b> {user_id}
+  
+logger_track: "ट्रैक:"
+logger_source: "सोर्स:"
+logger_group: "समूह:"
+logger_requested_by: "अनुरोधकर्ता:"
+logger_timestamp: "समयास्त (टिमस्टैम्प):"
+
+loop_usage: "🔁 <b>लूप नियंत्रण</b>\n\nउपयोग: {cmd} [count]\n• 0 - लूप अक्षम करें\n• 1-10 - लूप संख्या\n\n<i>{count_line}</i>"
+loop_invalid: "⚠️ <b>अमान्य लूप गिनती।</b>\nअक्षम करने के लिए 0 का उपयोग करें या लूप गिनती सेट करने के लिए 1-10 का उपयोग करें।"
+loop_already_set: "⚠️ लूप गिनती पहले से ही <b>{count}</b> बार पर सेट है।"
+loop_disabled: "🔁 {user} द्वारा लूप को <b>अक्षम</b> कर दिया गया है"
+loop_set: "🔁 <b>{count}</b> बार लूप करने के लिए सेट किया गया\n└ इनके द्वारा बदला गया: {user}"
+loop_current: "• वर्तमान लूप: <b>{count}</b> बार"
+
+logger_usage: "⚙️ उपयोग: <code>{cmd} [enable|disable]</code> - लॉगर को सक्षम या अक्षम करने के लिए\n\n{status}"
+logger_status: "📜 वर्तमान स्थिति: {action}"
+logger_check_fail: "❌ लॉगर स्थिति की जांच करने में विफल: {error}"
+logger_already: "ℹ️ लॉगर पहले से {action} है।"
+logger_update_fail: "❌ लॉगर सेटिंग अपडेट करने में विफल: {error}"
+logger_updated: "✅ लॉगर को सफलतापूर्वक {action} कर दिया गया है।"
+
+# Logs module
+logs_invalid_number: "⚠️ <b>अमान्य संख्या</b>\n\nमान <code>{value}</code> एक मान्य धनात्मक संख्या नहीं है।\n\n<b>उपयोग:</b> <code>/logs [number]</code> या <code>/logs -old [number]</code>"
+logs_invalid_flag: "⚠️ <b>अमान्य फ़्लैग</b>\n\nअज्ञात फ़्लैग या अमान्य इनपुट: <code>{flag}</code>\n\n<b>मान्य विकल्प:</b>\n• <code>/logs</code> - पूर्ण लॉग\n• <code>/logs [n]</code> - अंतिम N लाइनें\n• <code>/logs -old [n]</code> - सबसे पुराना लॉग\n• <code>/logs -clear</code> - लॉग साफ़ करें"
+logs_file_error: "❌ <b>लॉग फ़ाइल त्रुटि</b>\n\nलॉग फ़ाइल तक पहुँचते समय एक त्रुटि आई:\n<code>{error}</code>"
+logs_send_error: "❌ <b>लॉग भेजने में विफल</b>\n\nलॉग फ़ाइल तैयार करने या भेजने में असमर्थ।\n<code>{error}</code>"
+logs_clear_failed: "❌ <b>साफ़ करने में विफल</b>\n\nलॉग फ़ाइल साफ़ करने में विफल:\n<code>{error}</code>"
+logs_empty: "📭 <b>कोई लॉग उपलब्ध नहीं है</b>\n\nलॉग फ़ाइल या तो अभी तक मौजूद नहीं है या मौजूद है लेकिन इसमें कोई डेटा नहीं है।\n\nलॉग जेनरेट करने के लिए बॉट को कुछ समय तक चलाएं।"
+logs_preview_header: "📋 <b>वर्तमान लॉग पूर्वावलोकन:</b>"
+logs_lines_header: "📋 <b>हालिया लॉग लाइनें</b> (अंतिम {count})"
+logs_old_header: "📋 <b>सबसे पुरानी लॉग लाइनें</b> (पहली {count})"
+logs_uploading: "⏳ <b>लॉग फ़ाइल अपलोड हो रही है...</b>\n\nफ़ाइल तैयार होने तक कृपया प्रतीक्षा करें।"
+logs_file_caption: "📄 <b>लॉग फ़ाइल विवरण</b>\n\n<b>फ़ाइल नाम:</b> <code>{filename}</code>\n<b>आकार:</b> {size_mb} MB\n<b> अंतिम संशोधित:</b> {modified}"
+logs_lines_caption: "📋 <b>हालिया लॉग लाइनें</b>\n\nवर्तमान लॉग से अंतिम {count} लाइनें दिखाई जा रही हैं।"
+logs_old_caption: "📋 <b>सबसे पुरानी लॉग लाइनें</b>\n\nलॉग की शुरुआत से पहली {count} लाइनें दिखाई जा रही हैं।"
+logs_cleared: "✅ <b>लॉग फ़ाइल साफ़ कर दी गई</b>\n\nलॉग फ़ाइल सफलतापूर्वक साफ़ कर दी गई।\n<b>पिछला आकार:</b> {size_mb} MB"
+
+# reason - if maintenance reason available so at the place of {reason} the maint_reason will provided
+maint: "⚠️ मैं इस समय मेंटेनेंस के अधीन हूँ और अस्थायी रूप से अनुपलब्ध हूँ। कृपया बाद में पुनः प्रयास करें।\n\n{reason}"
+maint_reason: "<i>📝 कारण: {reason}</i>"
+
+# ⚙️ Maintenance control
+maint_usage: "⚙️ <b>रखरखाव (मेंटेनेंस) नियंत्रण</b>\n\nउपयोग: {cmd} [enable|disable] [reason]\n📜 वर्तमान स्थिति: {status}"
+maint_check_fail: "❌ मेंटेनेंस स्थिति की जाँच करने में विफल: <code>{error}</code>"
+maint_already_enabled: "ℹ️ मेंटेनेंस मोड पहले से ही सक्षम है 🟢।"
+maint_already_disabled: "ℹ️ मेंटेनेंस मोड पहले से ही अक्षम है 🔴।"
+maint_already_reason_same: "ℹ️ मेंटेनेंस पहले से ही उसी कारण से सक्षम है।"
+maint_reason_removed: "✅ मेंटेनेंस कारण सफलतापूर्वक हटा दिया गया।"
+maint_reason_updated: "✅ मेंटेनेंस कारण अपडेट किया गया।\n📝 कारण: {reason}"
+maint_enabled: "✅ मेंटेनेंस मोड सफलतापूर्वक <b>सक्षम</b> कर दिया गया है।"
+maint_enabled_reason: "✅ मेंटेनेंस मोड सक्षम किया गया।\n📝 कारण: {reason}"
+maint_disabled: "✅ मेंटेनेंस मोड सफलतापूर्वक <b>अक्षम</b> कर दिया गया है।"
+maint_entering: "⚠️ बॉट मेंटेनेंस मोड में प्रवेश कर रहा है..."
+enabled_with_reason: "🟢 सक्षम है\n📝 कारण: {reason}"
+
+move_usage: "⚠️ उपयोग: <code>{cmd} [from] [to]</code>"
+move_invalid_numbers: "⚠️ अमान्य संख्याएँ। उदाहरण: <code>/{cmd} 2 1</code>"
+move_invalid_indexes_min: "⚠️ इंडेक्स 0 से अधिक होना चाहिए।"
+move_invalid_indexes_max: "⚠️ कतार में केवल {queue_len} ट्रैक हैं।"
+move_success: "✅ {user} द्वारा ट्रैक को स्थिति {from} से {to} पर ले जाया गया।"
+
+# 🔇 Mute messages
+mute_already_muted: "🔇 <b>पहले से म्यूट है</b>\nइस चैट में संगीत पहले से म्यूट है।\nक्या आप इसे अनम्यूट करना चाहते हैं?"
+mute_already_muted_with_time: "🔇 <b>पहले से म्यूट है</b>\nसंगीत म्यूट है।\n<b>{duration}</b> में ऑटो-अनम्यूट होगा।"
+mute_invalid_duration: "⚠️ ऑटो-अनम्यूट के लिए अमान्य अवधि।\nयह <b>5</b> और <b>3600</b> सेकंड के बीच होनी चाहिए।"
+mute_invalid_format: "⚠️ अमान्य प्रारूप।\nउपयोग करें: <code>/{cmd} 30</code> या <code>/{cmd} 30s</code>"
+mute_failed: "❌ <b>प्लेबैक म्यूट विफल</b>\nत्रुटि: <code>{error}</code>"
+mute_success: |
+  🔇 <b>प्लेबैक म्यूट किया गया</b>
+
+  🎵 ट्रैक: {title}
+  👤 इनके द्वारा म्यूट किया गया: {user}
+
+mute_success_with_time: |
+  🔇 <b>प्लेबैक म्यूट किया गया</b>
+
+  🎵 ट्रैक: {title}
+  👤 इनके द्वारा म्यूट किया गया: {user}
+  ⏳ <b>{duration}</b> सेकंड में ऑटो-अनम्यूट होगा
+
+no_song_query: |
+  <b>🎵 अरे! कोई गाना नहीं मिला।</b>
+
+  बजाना शुरू करने के लिए <b>{cmd} [song name]</b> टाइप करें या किसी <b>मीडिया</b> का उत्तर दें!
+
+no_song_found: "❌ कोई ट्रैक नहीं मिला।"
+
+nothumb_status: |
+  🖼️ <b>थंबनेल नियंत्रण</b>
+  
+  सक्षम होने पर, प्लेबैक संदेशों में आर्टवर्क/थंबनेल नहीं दिखाई देगा।
+  
+  <b>📊 उपयोग: {cmd} [enable|disable]</b>
+  
+  थंबनेल वर्तमान में {action} है।
+  
+nothumb_fetch_fail: "⚠️ <b>थंबनेल सेटिंग लाने में विफल।</b>"
+nothumb_already: "ℹ️ थंबनेल प्रदर्शन पहले से {action} है।"
+nothumb_update_fail: "⚠️ <b>थंबनेल सेटिंग अपडेट करने में विफल।</b>"
+nothumb_updated: "🖼️ थंबनेल प्रदर्शन को {action} कर दिया गया है।"
+
+only_admin: "⚠️ <b>अनुमति अस्वीकृत!</b>\nकेवल <b>एडमिन</b> इन क्रियाओं को नियंत्रित कर सकते हैं। आप अभी भी गाने बजा सकते हैं 🎵。\n\nयदि आपको लगता है कि आप एक एडमिन हैं, तो कृपया अपनी एडमिन स्थिति को रीफ्रेश करने के लिए /reload का उपयोग करें।"
+only_admin_or_auth: "⚠️ <b>पहुँच अस्वीकृत</b>\nकेवल <b>एडमिन</b> या <b>अधिकृत यूजर</b> इन क्रियाओं को नियंत्रित कर सकते हैं।\n\nयदि आप हाल ही में एडमिन बने हैं, तो अपनी अनुमतियों को रीफ्रेश करने के लिए /reload का उपयोग करें।"
+only_admin_or_auth_cb: "⚠️ केवल एडमिन ऐसा कर सकते हैं।"
+only_supergroup: "⚠️ इस कमांड का उपयोग केवल समूहों में किया जा सकता है।"
+only_owner: "⚠️ इस कमांड का उपयोग केवल बॉट ओनर कर सकता है।"
+only_sudo: "⚠️ इस कमांड का उपयोग केवल सूडो यूजर या बॉट ओनर कर सकते हैं।"
+
+pause_invalid_duration: "⚠️ ऑटो-रिज्यूम के लिए अमान्य अवधि।\nयह <b>5</b> और <b>3600</b> सेकंड के बीच होनी चाहिए।"
+pause_invalid_format: "⚠️ अमान्य प्रारूप।\nउपयोग करें: <code>/{cmd} 30</code> या <code>/{cmd} 30s</code>"
+auto_resume_line: "\n<i>⏳ <b>{seconds}</b> सेकंड में ऑटो-रिज्यूम होगा</i>"
+
+pause_already: |
+  ⏸️ <b>पहले से रुका हुआ है</b>
+  संगीत पहले से रुका हुआ है।{auto_resume_line}
+
+pause_success: |
+  ⏸️ <b>प्लेबैक रोका गया</b>
+
+  🎵 ट्रैक: {title}
+  ⏱️ स्थिति: {position} / {duration}
+  👤 इनके द्वारा रोका गया: {user}
+  {auto_resume_line}
+
+play_single_track_too_long: |
+  ⚠️ आप {limit_mins} मिनट से अधिक लंबे गाने नहीं बजा सकते।
+  {title} को छोड़ दिया गया।
+
+play_download_failed: |
+  ❌ "<i>{title}</i>" डाउनलोड करने में विफल।
+  त्रुटि: <code>{error}</code>
+
+play_added_to_queue_single: |
+  <b>कतार में जोड़ा गया:</b> #{index}
+
+  <b>ट्रैक:</b> <a href="{url}">{title}</a>
+  <b>अवधि:</b> {duration}
+  <b>अनुरोधकर्ता:</b> {by}
+
+channel_play_depreciated: "⚠️ यह हैंडलर पुराना हो चुका है। प्लेबैक के लिए अपना चैनल सेट करने के लिए <code><a>/cplay --set channel_id </code></a> का उपयोग करें।"
+play_multiple_tracks_too_long_header: "<b>⚠️ {count} ट्रैक छोड़ दिए गए (अधिकतम अवधि {limit_mins} मिनट):</b>"
+play_multiple_tracks_too_long_item: "— <i>{title}</i>"
+play_multiple_tracks_too_long_more: "... और {remaining} अधिक।"
+play_all_tracks_skipped: "❌ अवधि सीमा के कारण सभी पाए गए ट्रैक छोड़ दिए गए।"
+play_failed: "❌ बजाने में विफल\nत्रुटि: {error}"
+play_unable: "<b> ❌ बजाने में असमर्थ </b>\n\n<i>कृपया <b>वॉयस चैट रीस्टार्ट</b> करें।</i>"
+play_snatched: "<blockquote>🦋 <b>𝖳𝗋𝖺𝖼𝗄 𝖲𝗇𝖺𝗍𝖼𝗁𝖾𝖽 𝖲𝗎𝖼𝖼𝖾𝗌𝗌𝖿𝗎𝗅𝗅𝗒</b>\n<b>🎵 {title}</b></blockquote>"
+play_download_gating: "<blockquote>😼 <b>𝖡𝗈𝗈𝗌𝗍𝗂𝗇𝗀 𝖠𝗎𝖽𝗂𝗈 𝖰𝗎𝖺𝗅𝗂𝗍𝗒 𝖳𝗈 𝖬𝖺𝗑...</b> 𝖯𝗅𝖾𝖺𝗌𝖾 𝖶𝖺𝗂𝗍 💖\n<b>🎵 {title}</b></blockquote>"
+play_download_canceled: "⚠️ {user} द्वारा डाउनलोड रद्द कर दिया गया।"
+play_added_multiple_header: "➕ {user} द्वारा <b>{count} ट्रैक जोड़े गए</b>"
+play_queue_limit_hint: "⚠️ कतार सीमा समाप्त — कुछ ट्रैक छोड़ दिए गए।"
+play_queue_view_hint: "पूर्ण सूची देखने के लिए /queue का उपयोग करें।"
+
+# 🏓 Ping messages
+ping_start: "🏓 पिंग किया जा रहा है..."
+ping_result: |
+  <b>🏓 पोंग</b>: <code>{latency}ms</code>
+  
+  <b><u>🤖 {bot} सिस्टम सांख्यिकी:</u></b>
+  
+  <b>अपटाइम:</b> {uptime}
+  <b>रैम उपयोग:</b> {ram_info}
+  <b>सीपीयू उपयोग:</b> {cpu_usage}
+  <b>डिस्क उपयोग:</b> {disk_usage}
+
+position_now: |
+  🎵 <b>{title}</b>
+  📍 <code>{position} / {duration}</code>
+  ⚙️ गति: <b>{speed}x</b>
+
+queue_limit_reached: "⚠️ कतार सीमा पहुँच गई ({limit} ट्रैक अधिकतम)। कतार साफ़ करने के लिए /clear का उपयोग करें।"
+queue_no_active: "⚠️ <b>कोई सक्रिय प्लेबैक नहीं है।</b>\n\nअभी कतार में कुछ भी नहीं है।"
+queue_header: "🎶 <b>वर्तमान कतार</b>"
+queue_now_playing: "▶️ <b>अब चल रहा है:</b>"
+queue_up_next: "⏭️ <b>अगला:</b>"
+queue_more_line: "\n… और {remaining} अधिक"
+queue_empty_tail: "📭 कतार में और कोई गाने नहीं हैं।"
+queue_empty: "⚠️ <b>कतार पहले से खाली है।</b>"
+queue_restored: "✅ कतार में <b>{count}</b> ट्रैक सफलतापूर्वक पुनर्स्थापित किए गए।"
+queue_restore_no_data: "❌ पुनर्स्थापित करने के लिए कोई साफ़ की गई कतार नहीं मिली, या नया गाना पहले ही जोड़ा जा चुका है।"
+
+# 🔄 Reload
+reload_start: "⚙️ एडमिन कैश, वॉयस चैट स्थिति, और असिस्टेंट स्थिति रीलोड हो रही है..."
+
+reload_done: "<b>⚙️ रीलोड पूर्ण:</b>\n\n{summary}"
+
+reload_admin_cache_ok: "<b>• एडमिन कैश:</b> <i>✅ हो गया</i>"
+reload_admin_cache_fail: "<b>• एडमिन कैश:</b> <i>❌ ({error})</i>"
+
+reload_voice_inactive: "<b>• वॉयस चैट:</b> <i>⚪ निष्क्रिय</i>"
+reload_voice_admin_required: "<b>• वॉयस चैट:</b> <i>❌ एडमिन अनुमति आवश्यक</i>"
+reload_voice_fail: "<b>• वॉयस चैट:</b> <i>❌ ({error})</i>"
+reload_voice_active: "<b>• वॉयस चैट:</b> <i>✅ सक्रिय</i>"
+
+reload_assistant_banned: "<b>• असिस्टेंट:</b> <i>❌ प्रतिबंधित</i>"
+reload_assistant_admin_required: "<b>• असिस्टेंट:</b> <i>❌ एडमिन अनुमति आवश्यक</i>"
+reload_assistant_fail: "<b>• असिस्टेंट:</b> <i>❌ ({error})</i>"
+reload_assistant_present: "<b>• असिस्टेंट:</b> <i>✅ मौजूद</i>"
+reload_assistant_not_present: "<b>• असिस्टेंट:</b> <i>⚪ मौजूद नहीं</i>"
+reload_room_reset: "<b>• कमरा:</b> <i>रीसेट ✅</i>"
+
+
+remove_usage: "⚠️ <b>अमान्य उपयोग।</b>\nउपयोग: <code>{cmd} [index]</code>"
+remove_invalid_index: "⚠️ <b>अमान्य इंडेक्स।</b> यह एक <b>संख्या</b> होनी चाहिए।"
+remove_index_too_small: "⚠️ <b>इंडेक्स 0 से अधिक होना चाहिए।</b>"
+remove_index_too_big: "⚠️ अमान्य इंडेक्स। कतार में केवल <b>{total}</b> ट्रैक हैं।"
+remove_success: "✅ कतार से स्थिति <b>{index}</b> पर मौजूद ट्रैक को हटा दिया गया।\n👤 इनके द्वारा: {user}"
+
+# 🔁 Replay
+replay_failed: "❌ <b>रीप्ले विफल</b>\nत्रुटि: <code>{error}</code>"
+replay_success: |
+  🔁 <b>अब पुनः चलाया जा रहा है</b>
+
+  🎵 शीर्षक: {title}
+  ⏱️ अवधि: <code>{duration}</code>
+  ⚙️ गति: <b>{speed}x</b>
+
+# ▶️ Resume
+resume_already_playing: "ℹ️ <b>पहले से चल रहा है</b>\nसंगीत इस चैट में पहले से चल रहा है।\nक्या आप इसे रोकना चाहते हैं?"
+resume_failed: "❌ <b>प्लेबैक रिज्यूम विफल</b>\nत्रुटि: <code>{error}</code>"
+resume_success: |
+  ▶️ <b>प्लेबैक फिर से शुरू हो रहा है</b>
+
+  🎵 शीर्षक: {title}
+  📍 स्थिति: {position} / {duration}
+  👤 इनके द्वारा पुनः शुरू किया गया: {user}
+  {speed_line}
+
+restart: "♻️ रीस्टार्ट हो रहा है..."
+restart_exepath_fail: "❌ निष्पादन योग्य पथ (executable path) प्राप्त करने में विफल: {error}"
+restart_symlink_fail: "❌ निष्पादन योग्य पथ हल करने में विफल: {error}"
+restart_service: "{bot} अभी रीस्टार्ट हुआ है। समस्याओं के लिए खेद है।\n\n10-15 सेकंड के बाद फिर से बजाना शुरू करें।"
+restart_initiated: "✅ रीस्टार्ट सफलतापूर्वक शुरू किया गया!"
+restart_fail: "❌ रीस्टार्ट करने में विफल: {error}"
+
+
+room_not_active_cb: "⚠️ अभी कुछ नहीं चल रहा है।"
+room_no_active: "⚠️ <b>कोई सक्रिय प्लेबैक नहीं है।</b>\n\n<i>अभी कुछ नहीं बज रहा है।</i>"
+room_not_linked: "⚠️ यह चैनल किसी समूह से जुड़ा नहीं है।"
+
+room_already_paused: "⏸️ ट्रैक पहले से रुका हुआ है। जारी रखने के लिए ▶️ Resume पर टैप करें।"
+room_already_paused_auto: "⏸️ ट्रैक पहले से रुका हुआ है — {duration} में ऑटो-रिज्यूम हो रहा है।"
+room_pause_failed: "❌ प्लेबैक रोकने में विफल।\n\n<i>{error}</i>"
+
+rtmp_not_configured: |
+  ⚠️ <b>RTMP कॉन्फ़िगर नहीं किया गया है!</b>
+  
+  कृपया पहले RTMP सर्वर सेट करें:
+  <code>{cmd} rtmps://server/s/streamkey</code>
+
+rtmp_already_streaming: |
+  📡 <b>पहले से स्ट्रीमिंग हो रही है!</b>
+  
+  वर्तमान स्ट्रीम समाप्त करने के लिए <code>/streamstop</code> का उपयोग करें।
+
+rtmp_init_failed: |
+  ❌ <b>RTMP स्ट्रीम प्रारंभ करने में विफल:</b>
+  <code>{error}</code>
+
+rtmp_starting_stream: "📡 <b>RTMP स्ट्रीम शुरू हो रही है...</b>"
+
+rtmp_play_failed: |
+  ❌ <b>स्ट्रीम शुरू करने में विफल:</b>
+  <code>{error}</code>
+
+rtmp_now_streaming: |
+  📡 <b>अब स्ट्रीमिंग हो रही है (RTMP):</b>
+  
+  <b>ट्रैक:</b> <a href="{url}">{title}</a>
+  <b>अवधि:</b> {duration}
+  <b>इनके द्वारा शुरू किया गया:</b> {by}
+  
+  ⚠️ नोट: RTMP में लगभग 15-30 सेकंड की बफरिंग देरी होती है
+
+rtmp_not_streaming: "ℹ️ कोई सक्रिय RTMP स्ट्रीम नहीं है।"
+
+rtmp_stop_failed: |
+  ❌ <b>स्ट्रीम रोकने में विफल:</b>
+  <code>{error}</code>
+
+rtmp_stopped: |
+  ⏹️ {user} द्वारा <b>RTMP स्ट्रीम बंद कर दी गई</b>
+
+rtmp_configured_not_started: |
+  ℹ️ <b>RTMP स्थिति:</b> शुरू नहीं हुई
+  
+  <b>▫ सर्वर:</b> <code>{server}</code>
+  <b>▫ स्थिति:</b> स्ट्रीम करने के लिए तैयार
+  
+  स्ट्रीमिंग शुरू करने के लिए <code>/stream &lt;query&gt;</code> का उपयोग करें।
+
+rtmp_status_playing: |
+  📡 <b>RTMP स्ट्रीम स्थिति</b>
+  
+  <b>स्थिति:</b> ▶️ स्ट्रीमिंग जारी है
+  <b>स्थिति (पोजिशन):</b> {position}
+  <b>सर्वर:</b> <code>{server}</code>
+
+rtmp_status_paused: |
+  📡 <b>RTMP स्ट्रीम स्थिति</b>
+  
+  <b>स्थिति:</b> ⏸️ रुका हुआ है
+  <b>सर्वर:</b> <code>{server}</code>
+
+rtmp_status_idle: |
+  📡 <b>RTMP स्ट्रीम स्थिति</b>
+  
+  <b>स्थिति:</b> ⏹️ निष्क्रिय (Idle)
+  <b>सर्वर:</b> <code>{server}</code>
+
+rtmp_dm_only: |
+  🔒 <b>सुरक्षा सूचना</b>
+  
+  RTMP क्रेडेंशियल कभी भी समूहों में साझा नहीं किए जाने चाहिए!
+  
+  <b>📩 RTMP कॉन्फ़िगर करने के लिए:</b>
+  1. मेरी निजी चैट खोलें: @{bot_username}
+  2. भेजें: <code>{cmd} &lt;chat_id&gt; &lt;rtmp_url&gt;</code>
+  
+  <b>💡 उदाहरण:</b>
+  <code>/setrtmp -1001234567890 rtmps://server/s/key</code>
+
+rtmp_setup_usage: |
+  ⚙️ <b>RTMP कॉन्फ़िगरेशन</b>
+  
+  <u>उपयोग:</u>
+  <code>/setrtmp &lt;chat_id&gt; &lt;full_rtmp_url&gt;</code>
+  
+  <b>📋 पैरामीटर:</b>
+  • <code>chat_id</code> - लक्ष्य चैट/चैनल आईडी
+  • <code>full_rtmp_url</code> - स्ट्रीम की के साथ पूर्ण RTMP URL
+  
+  <b>📝 उदाहरण:</b>
+  <code>/setrtmp -1001234567890 rtmps://dc5-1.rtmp.t.me/s/123:key</code>
+  
+  <b>🔍 चैट आईडी कैसे प्राप्त करें:</b>
+  • चैट से कोई भी संदेश @userinfobot पर अग्रेषित (forward) करें
+  • या चैट में <code>/id</code> कमांड का उपयोग करें
+  
+  <b>🔐 सुरक्षा:</b>
+  • कॉन्फ़िगरेशन केवल डीएम (निजी चैट) में काम करता है
+  • आपको लक्ष्य चैट में एडमिन होना चाहिए
+  • क्रेडेंशियल सुरक्षित रूप से संग्रहीत किए जाते हैं
+
+rtmp_invalid_chat_id: |
+  ❌ <b>अमान्य चैट आईडी!</b>
+  
+  कृपया एक वैध संख्यात्मक चैट आईडी प्रदान करें।
+  
+  <b>💡 उदाहरण:</b>
+  <code>/setrtmp -1001234567890 rtmps://...</code>
+
+rtmp_check_admin_failed: |
+  ❌ <b>एडमिन स्थिति सत्यापित करने में विफल:</b>
+  <code>{error}</code>
+  
+  <b>⚠️ सुनिश्चित करें कि:</b>
+  • मैं लक्ष्य चैट में एडमिन हूँ
+  • चैट आईडी सही है
+  • आपके पास एडमिन अनुमतियाँ हैं
+
+rtmp_not_admin: |
+  ⚠️ <b>अनुमति अस्वीकृत</b>
+  
+  RTMP कॉन्फ़िगर करने के लिए आपको लक्ष्य चैट में <b>एडमिनिस्ट्रेटर</b> होना चाहिए।
+
+rtmp_parse_failed: |
+  ❌ <b>RTMP URL पार्स करने में विफल:</b>
+  <code>{error}</code>
+  
+  <b>📋 सही प्रारूप:</b>
+  <code>rtmp://server/app/streamkey</code>
+  या
+  <code>rtmps://server/s/streamkey</code>
+
+rtmp_streaming_not_supported: |
+  ⚠️ <b>स्ट्रीमिंग समर्थित नहीं है</b>
+  
+  <b>RTMP मोड</b> का उपयोग करते समय यह कार्रवाई उपलब्ध नहीं है।
+  
+  RTMP के माध्यम से मीडिया चलाने के लिए <code>/stream</code> का उपयोग करें।
+  
+rtmp_configured_success: |
+  ✅ <b>RTMP सफलतापूर्वक कॉन्फ़िगर हो गया!</b>
+  
+  <b>🆔 चैट आईडी:</b> <code>{chat_id}</code>
+  <b>🔗 यूआरएल:</b> <code>{url}</code>
+  <b>🔑 की:</b> <code>{key}</code>
+  
+  <b>✨ अगले चरण:</b>
+  अपनी चैट पर जाएँ और उपयोग करें:
+  <code>/stream &lt;song name&gt;</code>
+  
+  <b>🔒 सुरक्षा नोट:</b>
+  क्रेडेंशियल सुरक्षित रूप से संग्रहीत किए जाते हैं और समूह में कभी नहीं दिखाए जाते हैं।
+
+
+searching: "<blockquote>🔍 <b>𝖲𝖾𝖺𝗋𝖼𝗁𝗂𝗇𝗀...</b></blockquote>"
+searching_query: "<blockquote>🔍 <b>𝖲𝖾𝖺𝗋𝖼𝗁𝗂𝗇𝗀 𝖿𝗈𝗋:</b> <b>{query}</b>...</blockquote>"
+
+speed_line: "⚙️ गति: <b>{speed}x</b>"
+
+stats_system_header: "🔧 <b>सिस्टम:</b>"
+stats_go_mem_header: "📦 <b>आंतरिक मेमोरी (Go):</b>"
+stats_server_header: "💻 <b>सर्वर आंकड़े:</b>"
+stats_served_header: "📊 <b>परोसा गया:</b>"
+
+stats_system_os_arch: "• OS: <code>{os}</code>, Arch: <code>{arch}</code>"
+stats_system_cpu_goroutines: "• CPUs: <code>{cpus}</code>, Goroutines: <code>{goroutines}</code>"
+
+stats_go_alloc: "• Alloc: <code>{alloc} MB</code>"
+stats_go_sys: "• Sys: <code>{sys} MB</code>"
+stats_go_gc: "• NumGC: <code>{gc_count}</code> ({emoji} {gc_rate}/min)"
+
+stats_server_cpu: "• CPU उपयोग: {emoji} <code>{cpu}%</code>"
+stats_server_ram: "• RAM उपयोग: {emoji} <code>{used_gib} GiB</code> | <code>{total_gib} GiB</code>"
+stats_server_storage: "• स्टोरेज: <code>{used_gib} GiB</code> | <code>{total_gib} GiB</code>"
+
+stats_served_chats: "• चैट: <code>{count}</code>"
+stats_served_chats_err: "• चैट: <code>त्रुटि: {error}</code>"
+
+stats_served_users: "• यूजर: <code>{count}</code>"
+stats_served_users_err: "• यूजर: <code>त्रुटि: {error}</code>"
+
+# 👑 Sudo users
+
+sudo_owner_self: "😂 हाहा, आप पहले से ही बॉस हैं! आप खुद को जोड़ने की कोशिश क्यों कर रहे हैं?"
+sudo_bot_self: "🤖 हाहा, मैं बॉट हूँ! मैं खुद को सूडो सूची में नहीं जोड़ सकता — ओनर भी मुझे धोखा नहीं दे सकता 😎"
+sudo_bot_user: "🤖 आप सूडो सूची में बॉट नहीं जोड़ सकते — सूडोर्स इंसान होने चाहिए!"
+
+sudo_fetch_user_fail: "❌ यूजर जानकारी लाने में विफल। शायद यूजर तक पहुँचा नहीं जा सकता।\n<i>{error}</i>"
+sudo_check_fail: "❌ सूडो अस्तित्व की जाँच करने में विफल: <i>{error}</i>"
+sudo_already: "⚠️ यूजर {user} (ID:<code>{id}</code>) पहले से ही एक सूडोइर है।"
+sudo_add_fail: "❌ सूडो जोड़ने में विफल: <i>{error}</i>"
+sudo_add_success: "✅ सूडोर्स में {user} (<code>{id}</code>) को जोड़ा गया।"
+sudo_assistant_self: "🤖 असिस्टेंट डिफ़ॉल्ट रूप से हमेशा सूडो सूची में होता है — इसे दोबारा नहीं जोड़ा जा सकता।"
+
+sudo_owner_remove_block: "😎 बढ़िया प्रयास! आप ओनर को नहीं हटा सकते — वे अछूत हैं।"
+sudo_assistant_cannot_remove: "🤖 असिस्टेंट आवश्यक है और इसे सूडो सूची से हटाया नहीं जा सकता।"
+sudo_not_exists: "⚠️ यूजर {user} (<code>{id}</code>) सूडोइर नहीं है।"
+sudo_remove_fail: "❌ सूडो हटाने में विफल: <i>{error}</i>"
+sudo_remove_success: "🗑️ सूडोर्स से {user} (ID: <code>{id}</code>) को हटाया गया।"
+
+sudo_list_fetching: "⏳ सूडोर्स सूची लाई जा रही है..."
+sudo_list_fetch_fail: "❌ सूडोर्स प्राप्त करने में विफल: <code>{error}</code>"
+sudo_list_header: "👑 <b>वर्तमान सूडोर्स:</b>"
+sudo_list_owner: "{index}. {user} — <b>ओनर</b>"
+sudo_list_entry: "{index}. {user}"
+sudo_list_no_extra: "⚠️ कोई अतिरिक्त सूडोर्स नहीं मिले।"
+
+seek_no_active: "⚠️ <b>वर्तमान में कोई ट्रैक नहीं चल रहा है।</b>"
+seek_usage: "⚠️ कृपया सेकंड प्रदान करें।\nउदाहरण: <code>{cmd} 40</code>"
+seek_invalid_seconds: "⚠️ अमान्य सेकंड मान।\nउदाहरण: <code>{cmd} 40</code>"
+seek_too_close_start: "⚠️ <b>{seconds}</b> सेकंड पीछे नहीं जाया जा सकता — यह ट्रैक की शुरुआत के बहुत करीब होगा।"
+seek_too_close_end: "⚠️ <b>{seconds}</b> सेकंड आगे नहीं जाया जा सकता — यह ट्रैक के अंत के बहुत करीब होगा।"
+seek_failed: "❌ {direction} <b>{seconds}</b> सेकंड जाने में विफल।\nत्रुटि: <code>{error}</code>"
+seek_success: "{emoji} <u>{duration}</u> में से <u>{position}</u> पर {direction} गए।"
+
+stop_confirm_paused: |
+  ⏸️ <b>प्लेबैक वर्तमान में रुका हुआ है।</b>
+
+  क्या आप बजाना जारी रखना चाहते हैं या इसे पूरी तरह रोकना चाहते हैं?
+
+stop_confirm_muted: |
+  🔇 <b>प्लेबैक वर्तमान में म्यूट है।</b>
+
+  क्या आप अनम्यूट करना चाहते हैं या इसे पूरी तरह रोकना चाहते हैं?
+
+stopped: "⏹️ <b>{user} द्वारा प्लेबैक बंद और साफ़ कर दिया गया।</b>"
+
+shuffle_current_state: "🔀 इस चैट के लिए वर्तमान में शफल <b>{state}</b> है।\n\nइसे टॉगल करने के लिए <code>{cmd}</code> का उपयोग करें।"
+shuffle_updated: "🔀 {user} द्वारा शफल <b>{state}</b> किया गया।"
+
+skip_stopped: "⏹️ प्लेबैक बंद। कतार खाली है।\nइनके द्वारा छोड़ा गया: {user}"
+
+speed_usage: |
+  💡 <b>उपयोग:</b>
+  <code>{cmd} [speed] [duration]</code> — प्लेबैक गति बदलें
+  
+  अनुमत गति सीमा: <b>0.50x → 4.00x</b>
+  अवधि (वैकल्पिक) दिए गए सेकंड के बाद गति को रीसेट कर देती है।
+  
+  उदाहरण:
+  <code>{cmd} 1.25 45</code> — 45 सेकंड के लिए 1.25x पर चलाएं।
+
+speed_current: "🎧 <b>वर्तमान गति:</b> 🎵 <u>{title}</u> के लिए <code>{speed}x</code>\n\n💡 सामान्य प्लेबैक को पुनर्स्थापित करने के लिए <code>{cmd} reset</code> का उपयोग करें।"
+
+speed_current_with_reset: |
+  🎧 <b>वर्तमान गति:</b> <code>{speed}x</code>
+
+  🎵 <b>ट्रैक:</b> <i>{title}</i>
+  ⏳ <b>ऑटो-रीसेट समय:</b> {duration}
+  
+  💡 सामान्य प्लेबैक को तुरंत पुनर्स्थापित करने के लिए <code>{cmd} reset</code> का उपयोग करें।
+
+speed_invalid_value: "❌ अमान्य गति मान।\nउदाहरण: <code>{cmd} 1.5</code> या <code>{cmd} 2x</code>"
+speed_invalid_range: "⚠️ गति <b>0.50x</b> और <b>4.00x</b> के बीच होनी चाहिए।"
+speed_invalid_duration: "⚠️ अमान्य अवधि। यह <b>5</b> और <b>3600</b> सेकंड के बीच होनी चाहिए।"
+
+speed_already_set: "ℹ️ 🎵 <b>{title}</b> के लिए प्लेबैक गति पहले से <b>{speed}x</b> है"
+
+speed_already_set_reset_hint: "ℹ️ 🎵 <b>{title}</b> के लिए प्लेबैक गति पहले से <b>{speed}x</b> है\n\n💡 सामान्य गति पर लौटने के लिए <code>{cmd} reset</code> का उपयोग करें।"
+
+speed_failed: |
+  ❌ गति को <b>{speed}x</b> पर बदलने में विफल।
+  त्रुटि: <code>{error}</code>
+
+speed_reset_success: "✅ {user} द्वारा प्लेबैक गति को रीसेट करके <b>1.0x</b> कर दिया गया"
+
+speed_set: "🚀 {user} द्वारा प्लेबैक गति <b>{speed}x</b> पर सेट की गई।"
+speed_set_with_reset: |
+  🚀 {user} द्वारा प्लेबैक गति <b>{speed}x</b> पर सेट की गई।
+  ⏳ <b>{duration}</b> सेकंड के बाद सामान्य हो जाएगी।
+
+
+spt_fetch_fail: "⚠️ नेटवर्क जानकारी लाने में विफल: <code>{error}</code>"
+spt_servers_fetch_fail: "⚠️ सर्वर लाने में विफल: <code>{error}</code>"
+spt_best_server_fail: "⚠️ सर्वश्रेष्ठ सर्वर खोजने में विफल: <code>{error}</code>"
+
+spt_running_download: "🚀 डाउनलोड परीक्षण चल रहा है..."
+spt_running_upload: "📤 अपलोड परीक्षण चल रहा है..."
+
+spt_result: |
+  <b>📡 स्पीडटेस्ट परिणाम</b>
+
+  <b><u>👤 क्लाइंट</u></b>
+  IP: <code>{ip}</code>
+  ISP: {isp}
+  Lat: <code>{lat}</code>
+  Lon: <code>{lon}</code>
+
+  <b><u>🛰️ सर्वर</u></b>
+  नाम: {server_name}
+  देश: {country}
+  प्रायोजक (Sponsor): {sponsor}
+  दूरी: {distance_km} किमी
+  विलंबता (Latency): {latency_ms} ms
+
+  <b><u>⚡ गति</u></b>
+  डाउनलोड: <code>{dl_mbps} Mbps</code>
+  अपलोड: <code>{ul_mbps} Mbps</code>
+
+start_private: |
+  <blockquote>
+  <b>नमस्ते {user}</b> — मैं <b>{bot}</b> हूँ।
+  </blockquote>
+
+  <blockquote expandable>
+  कतार इंटेलिजेंस के साथ वॉयस-चैट स्ट्रीमिंग: यूट्यूब, स्पॉटिफ़, साउंडक्लाउड, सीधे लिंक, और हुड के तहत कई अन्य पाइपलाइन।
+  मुझे एक सुपरग्रुप में जोड़ें, जहाँ आवश्यक हो वहाँ एडमिन दें, वॉयस चैट शुरू करें — फिर कुछ भी <code>/play</code> करें।
+  </blockquote>
+
+  <i>नीचे दिए गए डेक का उपयोग करें: मुझे जोड़ें, कमांड इंडेक्स खोलें, या अपडेट और सहायता प्राप्त करें।</i>
+
+start_group: |
+  <blockquote>
+  <b>इस चैट में ऑनलाइन।</b>
+  </blockquote>
+
+  <i>वॉयस चैट शुरू करें, फिर <code>/play</code> आज़माएं — मैं सूक्ष्म नहीं हूँ।</i>
+
+stream_channelid_fail: "⚠️ आपके जुड़े हुए चैनल की आईडी प्राप्त करने में विफल।"
+stream_queue_finished: "कतार में और कोई गाने नहीं हैं।"
+stream_downloading_next: "रुको !!\n\n📥 आपका अगला ट्रैक डाउनलोड हो रहा है..."
+stream_download_fail: "❌ डाउनलोड करने में विफल।\nत्रुटि: <code>{error}</code>"
+stream_play_fail: "❌ गाना बजाने में विफल।"
+stream_now_playing: |
+  <blockquote expandable>
+  <b>❍ Sᴛʀᴇᴀᴍ ᴛʏᴘᴇ :</b> ʟɪᴠᴇ sᴛʀᴇᴀᴍ
+  <b>❍ Tʀᴀᴄᴋ :</b> <a href="{url}">{title}</a>
+  <b>❍ Dᴜʀᴀᴛɪᴏɴ :</b> {duration}
+  <b>❍ Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ :</b> {by}
+
+  <b>✦ ᴘᴏᴡᴇʀᴇᴅ ʙʏ » <a href="https://t.me/ll_BLAZE_DRAGUN_ll">⏤͟͞𝘿 𝙍 𝘼 𝙂 𝙊 🇳 ⚡️</a></b>
+  </blockquote>
+
+# 👑 Sudo / Owner Join Messages
+sudo_join_owner: "👑 {user} — {bot} के ओनर — अभी चैट में आए हैं।"
+sudo_join_sudo: "🛡️ {user}, {bot} के एक सूडो यूजर, अभी चैट में शामिल हुए हैं।"
+
+supergroup_needed: |
+  यह चैट (ID: <code>{chat_id}</code>) अभी तक सुपरग्रुप नहीं है।
+  <b>⚠️ कृपया इस चैट को सुपरग्रुप में बदलें और फिर मुझे एडमिन के रूप में जोड़ें।</b>
+  
+  यदि आप नहीं जानते कि कैसे बदलना है, तो इस गाइड का उपयोग करें:
+  🔗 <a href=\"https://te.legra.ph/How-to-Convert-a-Group-to-a-Supergroup-01-02\">सुपरग्रुप में कैसे बदलें</a>
+  
+  यदि आपके कोई प्रश्न हैं, तो हमारे सहायता समूह से जुड़ें:
+  
+unmute_already: "ℹ️ <b>पहले से अनम्यूट है</b>\nसंगीत इस चैट में म्यूट नहीं है।"
+unmute_failed: "❌ <b>प्लेबैक अनम्यूट विफल</b>\nत्रुटि: <code>{error}</code>"
+unmute_success: |
+  🔊 <b>प्लेबैक अनम्यूट किया गया</b>
+
+  🎵 ट्रैक: {title}
+  👤 इनके द्वारा अनम्यूट किया गया: {user}
+  {speed_line}
+
+
+# 🔊 Voice Chat Events
+voicechat_ended: "<b>⚠️ वीडियो चैट समाप्त हुई</b>\n\n<i>⏰ अवधि: {duration}</i>"
+voicechat_started: "<b>♻️ वॉयस चैट शुरू हुई!</b>\n\n<i>संगीत बजाने के लिए /play [song name] का उपयोग करें।</i>"
+
+# Commands help
+help_owner: |
+  <blockquote>
+  👑 <b>ओनर लेन</b> — सूडो रोस्टर, गो इवल, मेंटेनेंस, रीस्टार्ट, शेल।
+  </blockquote>
+
+  <i>फ्लीट प्रशासन के लिए विशेष उपकरण।</i>
+
+  <b>कमांड्स:</b>
+  <b>/addsudo</b> - बॉट की सूडो सूची में नया यूजर जोड़ें
+  <b>/delsudo</b> - बॉट की सूडो सूची से यूजर हटाएं
+  <b>/eval</b> - गो कोड स्निपेट निष्पादित करें
+  <b>/maintenance</b> — बॉट के मेंटेनेंस मोड को प्रबंधित करें
+  <b>/restart</b> — बॉट को रीस्टार्ट करें
+  <b>/sh</b> - शेल कमांड चलाएं
+
+help_sudo: |
+  <blockquote>
+  ⚡ <b>सूडो लेन</b> — सक्रिय चैट, ऑटो-लीव, लॉगर, आंकड़े, लॉग पुल।
+  </blockquote>
+
+  <i>ओनर-ओनली स्विच को छुए बिना टेलीमेट्री और स्वचालन।</i>
+
+  <b>कमांड्स:</b>
+  <b>/active</b> - कुल सक्रिय चैट दिखाता है
+  <b>/autoleave</b> - स्वचालित चैट छोड़ने की सुविधा टॉगल करें
+  <b>/logger</b> - लॉगर सक्षम या अक्षम करें
+  <b>/stats</b> - बॉट और सिस्टम आंकड़े प्रदर्शित करें
+  <b>/logs</b> - सिस्टम लॉग प्राप्त करें 
+
+help_admin: |
+  <blockquote>
+  🎛 <b>डीजे · एडमिन डेक</b> — ट्रांसपोर्ट, कतार सर्जरी, लूप, थंब पॉलिसी।
+  </blockquote>
+
+  <i>जहाँ आपकी चैट इसे लागू करती है वहाँ एडमिन या ऑथ की आवश्यकता होती है।</i>
+
+  <b>कमांड्स:</b>
+  <b>/speed</b> - प्लेबैक गति बदलें
+  <b>/skip</b> - वर्तमान गाना छोड़ें
+  <b>/pause</b> - वर्तमान प्लेबैक रोकें
+  <b>/resume</b> - रुका हुआ प्लेबैक फिर से शुरू करें
+  <b>/replay</b> - वर्तमान गाना पुनः चलाएं
+  <b>/mute</b> - प्लेबैक म्यूट करें
+  <b>/unmute</b> - प्लेबैक अनम्यूट करें
+  <b>/seek</b> - कुछ सेकंड आगे बढ़ें
+  <b>/seekback</b> - कुछ सेकंड पीछे जाएं
+  <b>/jump</b> - ट्रैक में दिए गए समय पर जाएं
+  <b>/move</b> - कतारबद्ध ट्रैक को दूसरी स्थिति में ले जाएं
+  <b>/clear</b> - कतार से सभी गाने हटाएं
+  <b>/remove</b> - कतार से एक विशिष्ट ट्रैक हटाएं
+  <b>/shuffle</b> - कतारबद्ध सभी ट्रैक शफल करें
+  <b>/loop</b> - लूपिंग सक्षम या अक्षम करें
+  <b>/stop</b> - प्लेबैक बंद करें और VC छोड़ें
+  <b>/nothumb</b> - प्लेबैक संदेशों में आर्टवर्क/थंबनेल सक्षम या अक्षम करें
+
+help_public: |
+  <blockquote>
+  🌐 <b>सभी</b> — ट्रैक का अनुरोध करें, कतार पढ़ें, पिंग करें, बग रिपोर्ट करें।
+  </blockquote>
+
+  <i>ताज की आवश्यकता नहीं है — जब तक कि आपका समूह नियंत्रण को एडमिन/ऑथ तक सीमित न कर दे।</i>
+
+  <b>कमांड्स:</b>
+  <b>/play</b> - एक गाना बजाएं
+  <b>/queue</b> - वर्तमान में कतारबद्ध सभी ट्रैक देखें
+  <b>/ping</b> - बॉट की नेटवर्क लेटेंसी जांचें
+  <b>/start</b> - बॉट शुरू करें
+  <b>/help</b> - सहायता मेनू दिखाएं
+  <b>/bug</b> - कोई समस्या या त्रुटि रिपोर्ट करें
+  <b>/position</b> - वर्तमान ट्रैक का समयास्त (टिमस्टैम्प) दिखाएं
+  <b>/reload</b> - एडमिन या कैश डेटा रीलोड करें
+  <b>/json</b> - संदेश JSON संरचना दिखाएं
+  <b>/sudolist</b> - सूडो यूजर सूची देखें
