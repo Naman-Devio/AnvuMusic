@@ -297,12 +297,12 @@ func normalizeTrack(t TrackInfo) TrackInfo {
 
 func makeLayout(scale int) layout {
 	s := scale
-	safe := 96 * s
-	gap := 56 * s
-	art := 500 * s
+	safe := 92 * s
+	gap := 54 * s
+	art := 468 * s
 	cardX := safe + art + gap
 	cardW := internalW - safe - cardX
-	cardY := 220
+	cardY := 168 * s
 	cardH := internalH - 2*cardY
 	return layout{
 		SafePad:       safe,
@@ -315,43 +315,44 @@ func makeLayout(scale int) layout {
 		CardW:         cardW,
 		CardH:         cardH,
 		WatermarkX:    safe,
-		WatermarkY:    90,
-		WatermarkW:    290,
-		WatermarkH:    74,
-		CardRadius:    44,
-		ArtRadius:     54,
-		InnerPad:      88,
-		TitleTop:      210,
-		ProgressY:     cardY + cardH - 332,
-		ProgressH:     16,
-		ControlsY:     cardY + cardH - 170,
-		VolumeY:       cardY + cardH - 104,
-		WaveformY:     cardY + cardH - 380,
-		WaveformH:     62,
-		BadgeGap:      18,
-		ButtonRadius:  34,
-		MainButtonRad: 48,
+		WatermarkY:    76 * s,
+		WatermarkW:    312,
+		WatermarkH:    72,
+		CardRadius:    48,
+		ArtRadius:     58,
+		InnerPad:      84,
+		TitleTop:      198,
+		ProgressY:     cardY + cardH - 302,
+		ProgressH:     12,
+		ControlsY:     cardY + cardH - 164,
+		VolumeY:       cardY + cardH - 102,
+		WaveformY:     cardY + cardH - 360,
+		WaveformH:     48,
+		BadgeGap:      16,
+		ButtonRadius:  32,
+		MainButtonRad: 50,
 	}
 }
 
 func (r *renderer) buildBackground() *image.RGBA {
 	bg := coverCropResize(r.artwork, internalW, internalH)
-	gaussianBlur(bg, 30)
-	overlayVerticalGradient(bg, color.RGBA{0, 0, 0, 30}, r.palette.BackgroundTop, 0.00, 0.55)
-	overlayVerticalGradient(bg, color.RGBA{0, 0, 0, 0}, r.palette.BackgroundBot, 0.55, 1.00)
-	applyTint(bg, mixColor(color.RGBA{9, 11, 15, 255}, r.palette.Dominant, 0.10), 0.28)
-	applyVignette(bg, 0.22)
-	addFilmGrain(bg, 0.025)
+	gaussianBlur(bg, 34)
+	applyTint(bg, mixColor(color.RGBA{9, 11, 15, 255}, r.palette.Dominant, 0.08), 0.34)
+	overlayVerticalGradient(bg, color.RGBA{255, 255, 255, 12}, r.palette.BackgroundTop, 0.00, 0.48)
+	overlayVerticalGradient(bg, color.RGBA{0, 0, 0, 0}, r.palette.BackgroundBot, 0.46, 1.00)
+	applyVignette(bg, 0.18)
+	addFilmGrain(bg, 0.010)
 	return bg
 }
 
 func (r *renderer) drawAmbient() {
 	artRect := image.Rect(r.layout.ArtX, r.layout.ArtY, r.layout.ArtX+r.layout.ArtSize, r.layout.ArtY+r.layout.ArtSize)
-	glowA := colorWithAlpha(r.palette.Glow, 76)
-	glowB := colorWithAlpha(mixColor(r.palette.Accent, color.RGBA{255, 255, 255, 255}, 0.12), 42)
-	drawRadialGlow(r.ambient, artRect.Min.X+artRect.Dx()/2-120, artRect.Min.Y+artRect.Dy()/2-60, artRect.Dx()+240, artRect.Dy()+240, glowA)
-	drawRadialGlow(r.ambient, artRect.Min.X+artRect.Dx()/2+160, artRect.Min.Y+artRect.Dy()/2+120, artRect.Dx(), artRect.Dy(), glowB)
-	drawRadialGlow(r.ambient, r.layout.CardX+r.layout.CardW/2, r.layout.CardY+r.layout.CardH-140, r.layout.CardW+260, 320, colorWithAlpha(r.palette.Accent, 26))
+	glowA := colorWithAlpha(mixColor(r.palette.Accent, color.RGBA{255, 255, 255, 255}, 0.28), 42)
+	glowB := colorWithAlpha(mixColor(r.palette.Dominant, color.RGBA{255, 255, 255, 255}, 0.20), 28)
+	drawRadialGlow(r.ambient, artRect.Min.X+artRect.Dx()/2-96, artRect.Min.Y+artRect.Dy()/2-72, artRect.Dx()+180, artRect.Dy()+180, glowA)
+	drawRadialGlow(r.ambient, artRect.Min.X+artRect.Dx()/2+140, artRect.Min.Y+artRect.Dy()/2+96, artRect.Dx()-60, artRect.Dy()-60, glowB)
+	drawRadialGlow(r.ambient, r.layout.CardX+r.layout.CardW/2, r.layout.CardY+180, r.layout.CardW+120, 240, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 18))
+	drawRadialGlow(r.ambient, r.layout.CardX+r.layout.CardW/2, r.layout.CardY+r.layout.CardH-110, r.layout.CardW+160, 180, colorWithAlpha(color.RGBA{8, 10, 16, 255}, 18))
 }
 
 func (r *renderer) drawWatermarkCard() {
@@ -366,11 +367,11 @@ func (r *renderer) drawWatermarkCard() {
 
 func (r *renderer) drawArtwork() {
 	x, y, size := r.layout.ArtX, r.layout.ArtY, r.layout.ArtSize
-	drawShadowRect(r.content, x-16, y+16, size+32, size+32, r.layout.ArtRadius+20, colorWithAlpha(r.palette.Shadow, 135), 26)
-	drawShadowRect(r.content, x-8, y+8, size+16, size+16, r.layout.ArtRadius+12, colorWithAlpha(r.palette.Glow, 60), 18)
+	drawShadowRect(r.content, x-20, y+22, size+40, size+40, r.layout.ArtRadius+22, colorWithAlpha(r.palette.Shadow, 128), 30)
+	drawShadowRect(r.content, x-10, y+10, size+20, size+20, r.layout.ArtRadius+14, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 22), 16)
 	pasteRoundedAA(r.content, r.albumArt, x, y, size, size, r.layout.ArtRadius)
-	drawRoundedRectBorderAA(r.content, x, y, size, size, r.layout.ArtRadius, color.RGBA{255, 255, 255, 96}, 2)
-	drawInnerHighlight(r.content, x, y, size, size, r.layout.ArtRadius, color.RGBA{255, 255, 255, 52})
+	drawRoundedRectBorderAA(r.content, x, y, size, size, r.layout.ArtRadius, color.RGBA{255, 255, 255, 104}, 2)
+	drawInnerHighlight(r.content, x, y, size, size, r.layout.ArtRadius, color.RGBA{255, 255, 255, 44})
 	drawReflection(r.content, x, y, size, size, r.layout.ArtRadius)
 }
 
@@ -477,12 +478,12 @@ func (r *renderer) drawMetadata(x, y, maxW int) {
 func (r *renderer) drawProgress(x, width int) {
 	l := r.layout
 	waveY := l.WaveformY
-	drawWaveform(r.content, x, waveY, width, l.WaveformH, colorWithAlpha(r.palette.TextPrimary, 42), r.palette.Accent)
+	drawWaveform(r.content, x, waveY, width, l.WaveformH, colorWithAlpha(r.palette.TextPrimary, 38), r.palette.Accent)
 
 	progress := resolveProgress(r.track)
 	elapsed, total, remaining := resolveTimes(r.track, progress)
 	trackY := l.ProgressY
-	drawRoundedRect(r.content, x, trackY, width, l.ProgressH, l.ProgressH/2, colorWithAlpha(r.palette.TrackRemainder, 170))
+	drawRoundedRect(r.content, x, trackY, width, l.ProgressH, l.ProgressH/2, colorWithAlpha(r.palette.TrackRemainder, 148))
 	fillW := int(float64(width) * progress)
 	if fillW < l.ProgressH {
 		fillW = l.ProgressH
@@ -491,14 +492,15 @@ func (r *renderer) drawProgress(x, width int) {
 		}
 	}
 	if fillW > 0 {
-		drawHorizontalGradientRoundedRect(r.content, x, trackY, fillW, l.ProgressH, l.ProgressH/2, colorWithAlpha(lightenColor(r.palette.Accent, 18), 240), colorWithAlpha(r.palette.Accent, 250))
-		drawShadowCircle(r.content, x+fillW, trackY+l.ProgressH/2, 18, colorWithAlpha(r.palette.Glow, 82), 12)
-		drawCircleAA(r.content, x+fillW, trackY+l.ProgressH/2, 10, color.RGBA{255, 255, 255, 245})
+		drawHorizontalGradientRoundedRect(r.content, x, trackY, fillW, l.ProgressH, l.ProgressH/2, colorWithAlpha(lightenColor(r.palette.Accent, 18), 232), colorWithAlpha(r.palette.Accent, 240))
+		knobX := clampInt(x+l.ProgressH/2, x+width-l.ProgressH/2, x+fillW)
+		drawCircleAA(r.content, knobX, trackY+l.ProgressH/2, 9, color.RGBA{255, 255, 255, 248})
+		drawCircleBorder(r.content, knobX, trackY+l.ProgressH/2, 9, colorWithAlpha(r.palette.Accent, 86), 2)
 	}
-	labelY := trackY + 52
+	labelY := trackY + 48
 	drawText(r.content, elapsed, x, labelY, colorWithAlpha(r.palette.TextSecondary, 215), 22, false)
 	totalW := measureText(total, 22, false)
-	drawText(r.content, total, x+width/2-totalW/2, labelY, colorWithAlpha(r.palette.TextMuted, 178), 22, false)
+	drawText(r.content, total, x+width/2-totalW/2, labelY, colorWithAlpha(r.palette.TextMuted, 170), 22, false)
 	remainingW := measureText(remaining, 22, false)
 	drawText(r.content, remaining, x+width-remainingW, labelY, colorWithAlpha(r.palette.TextSecondary, 215), 22, false)
 }
@@ -538,11 +540,13 @@ func (r *renderer) drawVolume(x, width int) {
 	sliderW := 190
 	sliderX := x + width - sliderW
 	drawIconVolume(r.content, sliderX-34, cy, 16, colorWithAlpha(r.palette.TextSecondary, 220))
-	drawRoundedRect(r.content, sliderX, cy-7, sliderW, 10, 5, colorWithAlpha(r.palette.TrackRemainder, 170))
+	drawRoundedRect(r.content, sliderX, cy-7, sliderW, 10, 5, colorWithAlpha(r.palette.TrackRemainder, 156))
 	fill := int(float64(sliderW) * clamp01(r.track.Volume))
 	if fill > 0 {
-		drawHorizontalGradientRoundedRect(r.content, sliderX, cy-7, fill, 10, 5, colorWithAlpha(lightenColor(r.palette.Accent, 22), 230), colorWithAlpha(r.palette.Accent, 230))
-		drawCircleAA(r.content, sliderX+fill, cy-2, 8, color.RGBA{255, 255, 255, 245})
+		drawHorizontalGradientRoundedRect(r.content, sliderX, cy-7, fill, 10, 5, colorWithAlpha(lightenColor(r.palette.Accent, 20), 220), colorWithAlpha(r.palette.Accent, 226))
+		knobX := clampInt(sliderX+5, sliderX+sliderW-5, sliderX+fill)
+		drawCircleAA(r.content, knobX, cy-2, 7, color.RGBA{255, 255, 255, 244})
+		drawCircleBorder(r.content, knobX, cy-2, 7, colorWithAlpha(r.palette.Accent, 76), 2)
 	}
 }
 
@@ -561,10 +565,11 @@ func layoutTitle(text string, maxWidth, maxLines, maxSize, minSize int, bold boo
 	lines := wrapText(text, maxWidth, minSize, bold)
 	if len(lines) > maxLines {
 		last := strings.Join(lines[maxLines-1:], " ")
-		lines = append(lines[:maxLines-1], last)
+		lines = append(lines[:maxLines-1], ellipsizeToWidth(last, maxWidth, minSize, bold))
 	}
 	lh := lineHeight(minSize, bold)
-	return textBlock{Lines: lines, Size: minSize, LineHeight: lh, Height: len(lines) * lh}
+	clamped := lines[:minInt(len(lines), maxLines)]
+	return textBlock{Lines: clamped, Size: minSize, LineHeight: lh, Height: len(clamped) * lh}
 }
 
 func wrapText(text string, maxWidth, size int, bold bool) []string {
@@ -624,6 +629,22 @@ func breakLongWord(word string, maxWidth, size int, bold bool) []string {
 
 func normalizeWhitespace(s string) string {
 	return strings.Join(strings.Fields(strings.TrimSpace(s)), " ")
+}
+
+func ellipsizeToWidth(text string, maxWidth, size int, bold bool) string {
+	text = normalizeWhitespace(text)
+	if text == "" || measureText(text, size, bold) <= maxWidth {
+		return text
+	}
+	runes := []rune(text)
+	for len(runes) > 1 {
+		runes = runes[:len(runes)-1]
+		candidate := strings.TrimSpace(string(runes)) + "…"
+		if measureText(candidate, size, bold) <= maxWidth {
+			return candidate
+		}
+	}
+	return "…"
 }
 
 func lineHeight(size int, bold bool) int {
@@ -729,7 +750,7 @@ func extractPalette(src image.Image) palette {
 			lum := luminance(c)
 			sat := saturation(c)
 			weight := 1
-			if sat > 0.22 {
+			if sat > 0.20 {
 				weight += 2
 			}
 			if lum > 0.08 && lum < 0.92 {
@@ -758,7 +779,7 @@ func extractPalette(src image.Image) palette {
 			continue
 		}
 		c := color.RGBA{uint8(bk.r / bk.count), uint8(bk.g / bk.count), uint8(bk.b / bk.count), 255}
-		score := float64(bk.count) * (0.70 + saturation(c))
+		score := float64(bk.count) * (0.72 + saturation(c))
 		lum := luminance(c)
 		if lum < 0.08 || lum > 0.94 {
 			score *= 0.65
@@ -772,23 +793,32 @@ func extractPalette(src image.Image) palette {
 	if total > 0 {
 		avg = color.RGBA{uint8(totalR / total), uint8(totalG / total), uint8(totalB / total), 255}
 	}
-	accent := boostColor(mixColor(dominant, avg, 0.22), 1.15, 1.05)
-	glow := colorWithAlpha(boostColor(accent, 1.08, 1.12), 255)
-	shadow := darkenColor(accent, 0.55)
+	accent := boostColor(mixColor(dominant, avg, 0.34), 1.06, 1.02)
+	if saturation(accent) > 0.78 {
+		accent = mixColor(accent, avg, 0.18)
+	}
+	if luminance(accent) < 0.18 {
+		accent = lightenColor(accent, 22)
+	}
+	if luminance(accent) > 0.82 {
+		accent = darkenColor(accent, 0.78)
+	}
+	glow := colorWithAlpha(mixColor(accent, color.RGBA{255, 255, 255, 255}, 0.16), 255)
+	shadow := darkenColor(mixColor(accent, color.RGBA{14, 16, 20, 255}, 0.62), 0.72)
 	useDarkText := luminance(avg) > 0.64
 	textPrimary := color.RGBA{246, 247, 250, 255}
 	textSecondary := color.RGBA{220, 223, 229, 255}
 	textMuted := color.RGBA{177, 182, 191, 255}
-	cardFill := color.RGBA{255, 255, 255, 36}
-	cardStroke := color.RGBA{255, 255, 255, 62}
-	trackRemainder := color.RGBA{255, 255, 255, 52}
+	cardFill := color.RGBA{255, 255, 255, 42}
+	cardStroke := color.RGBA{255, 255, 255, 72}
+	trackRemainder := color.RGBA{255, 255, 255, 46}
 	if useDarkText {
 		textPrimary = color.RGBA{28, 32, 40, 255}
 		textSecondary = color.RGBA{52, 58, 69, 255}
 		textMuted = color.RGBA{81, 89, 102, 255}
-		cardFill = color.RGBA{255, 255, 255, 86}
-		cardStroke = color.RGBA{255, 255, 255, 124}
-		trackRemainder = color.RGBA{30, 36, 48, 50}
+		cardFill = color.RGBA{255, 255, 255, 92}
+		cardStroke = color.RGBA{255, 255, 255, 132}
+		trackRemainder = color.RGBA{30, 36, 48, 42}
 	}
 	return palette{
 		Dominant:       dominant,
@@ -802,8 +832,8 @@ func extractPalette(src image.Image) palette {
 		CardStroke:     cardStroke,
 		TrackFill:      accent,
 		TrackRemainder: trackRemainder,
-		BackgroundTop:  color.RGBA{10, 12, 16, 102},
-		BackgroundBot:  color.RGBA{4, 5, 8, 210},
+		BackgroundTop:  color.RGBA{10, 12, 16, 96},
+		BackgroundBot:  color.RGBA{4, 5, 8, 214},
 		UseDarkText:    useDarkText,
 	}
 }
@@ -839,23 +869,76 @@ func resizeSmooth(src image.Image, w, h int) *image.RGBA {
 }
 
 func coverCropResize(src image.Image, w, h int) *image.RGBA {
+	crop := focusCropRect(src, w, h)
+	tmp := image.NewRGBA(image.Rect(0, 0, crop.Dx(), crop.Dy()))
+	stdDraw.Draw(tmp, tmp.Bounds(), src, crop.Min, stdDraw.Src)
+	return resizeSmooth(tmp, w, h)
+}
+
+func focusCropRect(src image.Image, w, h int) image.Rectangle {
 	sb := src.Bounds()
 	sw, sh := float64(sb.Dx()), float64(sb.Dy())
 	targetRatio := float64(w) / float64(h)
 	srcRatio := sw / sh
 	crop := sb
+	candidates := 11
 	if srcRatio > targetRatio {
 		cropW := int(sh * targetRatio)
-		ox := sb.Min.X + (sb.Dx()-cropW)/2
-		crop = image.Rect(ox, sb.Min.Y, ox+cropW, sb.Max.Y)
+		maxOffset := sb.Dx() - cropW
+		bestScore := -1.0
+		bestX := sb.Min.X + maxOffset/2
+		for i := 0; i < candidates; i++ {
+			t := float64(i) / float64(candidates-1)
+			ox := sb.Min.X + int(float64(maxOffset)*t)
+			rect := image.Rect(ox, sb.Min.Y, ox+cropW, sb.Max.Y)
+			score := regionEnergy(src, rect) * (1 - math.Abs(t-0.5)*0.14)
+			if score > bestScore {
+				bestScore = score
+				bestX = ox
+			}
+		}
+		crop = image.Rect(bestX, sb.Min.Y, bestX+cropW, sb.Max.Y)
 	} else if srcRatio < targetRatio {
 		cropH := int(sw / targetRatio)
-		oy := sb.Min.Y + (sb.Dy()-cropH)/2
-		crop = image.Rect(sb.Min.X, oy, sb.Max.X, oy+cropH)
+		maxOffset := sb.Dy() - cropH
+		bestScore := -1.0
+		bestY := sb.Min.Y + maxOffset/2
+		for i := 0; i < candidates; i++ {
+			t := float64(i) / float64(candidates-1)
+			oy := sb.Min.Y + int(float64(maxOffset)*t)
+			rect := image.Rect(sb.Min.X, oy, sb.Max.X, oy+cropH)
+			score := regionEnergy(src, rect) * (1 - math.Abs(t-0.5)*0.14)
+			if score > bestScore {
+				bestScore = score
+				bestY = oy
+			}
+		}
+		crop = image.Rect(sb.Min.X, bestY, sb.Max.X, bestY+cropH)
 	}
-	tmp := image.NewRGBA(image.Rect(0, 0, crop.Dx(), crop.Dy()))
-	stdDraw.Draw(tmp, tmp.Bounds(), src, crop.Min, stdDraw.Src)
-	return resizeSmooth(tmp, w, h)
+	return crop
+}
+
+func regionEnergy(src image.Image, rect image.Rectangle) float64 {
+	stepX := maxInt(1, rect.Dx()/28)
+	stepY := maxInt(1, rect.Dy()/28)
+	var score float64
+	for y := rect.Min.Y; y < rect.Max.Y; y += stepY {
+		for x := rect.Min.X; x < rect.Max.X; x += stepX {
+			base := color.RGBAModel.Convert(src.At(x, y)).(color.RGBA)
+			lum := luminance(base)
+			sat := saturation(base)
+			score += sat*1.7 + (1 - math.Abs(lum-0.55))
+			if x+stepX < rect.Max.X {
+				right := color.RGBAModel.Convert(src.At(x+stepX, y)).(color.RGBA)
+				score += math.Abs(lum-luminance(right)) * 1.4
+			}
+			if y+stepY < rect.Max.Y {
+				down := color.RGBAModel.Convert(src.At(x, y+stepY)).(color.RGBA)
+				score += math.Abs(lum-luminance(down)) * 1.2
+			}
+		}
+	}
+	return score
 }
 
 func gaussianBlur(img *image.RGBA, radius int) {
@@ -991,8 +1074,9 @@ func addFilmGrain(img *image.RGBA, intensity float64) {
 }
 
 func drawGlassPanel(dst, backdrop *image.RGBA, x, y, w, h, radius int, pal palette, fillStrength float64) {
+	drawShadowRect(dst, x, y+18, w, h, radius, colorWithAlpha(color.RGBA{8, 10, 16, 255}, 54), 24)
 	region := sampleRegion(backdrop, x, y, w, h)
-	gaussianBlur(region, 18)
+	gaussianBlur(region, 22)
 	for py := 0; py < h; py++ {
 		for px := 0; px < w; px++ {
 			cov := roundedCoverage(px, py, w, h, float64(radius))
@@ -1000,20 +1084,15 @@ func drawGlassPanel(dst, backdrop *image.RGBA, x, y, w, h, radius int, pal palet
 				continue
 			}
 			base := region.RGBAAt(px, py)
-			highlight := int(26 * math.Pow(1-clamp01(float64(py)/float64(h)*1.35), 2))
-			grain := int((hashNoise(x+px, y+py) - 0.5) * 8)
-			fill := color.RGBA{
-				R: lighten(base.R, int(float64(24+highlight+grain)*fillStrength*3.2)),
-				G: lighten(base.G, int(float64(24+highlight+grain)*fillStrength*3.2)),
-				B: lighten(base.B, int(float64(30+highlight+grain)*fillStrength*3.2)),
-				A: uint8((98 + fillStrength*110) * cov),
-			}
-			blendPixel(dst, x+px, y+py, fill)
+			lift := 0.10 + fillStrength*0.16 + math.Pow(1-clamp01(float64(py)/float64(h)*1.35), 2)*0.08
+			glass := mixColor(base, color.RGBA{255, 255, 255, 255}, lift)
+			glass = mixColor(glass, pal.Accent, 0.04)
+			alpha := uint8((88 + fillStrength*84) * cov)
+			blendPixel(dst, x+px, y+py, color.RGBA{glass.R, glass.G, glass.B, alpha})
 		}
 	}
+	drawInnerHighlight(dst, x, y, w, h, radius, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 34))
 	drawRoundedRectBorderAA(dst, x, y, w, h, radius, pal.CardStroke, 2)
-	drawInnerHighlight(dst, x, y, w, h, radius, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 36))
-	drawShadowRect(dst, x, y+8, w, h, radius, colorWithAlpha(color.RGBA{0, 0, 0, 255}, 36), 18)
 }
 
 func sampleRegion(src *image.RGBA, x, y, w, h int) *image.RGBA {
@@ -1035,24 +1114,24 @@ func drawChip(dst *image.RGBA, x, y int, label string, width int, fill, fg color
 }
 
 func drawWaveform(dst *image.RGBA, x, y, w, h int, base, accent color.RGBA) {
-	bars := 46
-	gap := 8
+	bars := 58
+	gap := 6
 	barW := (w - gap*(bars-1)) / bars
 	if barW < 2 {
 		barW = 2
 	}
 	mid := y + h/2
 	for i := 0; i < bars; i++ {
-		phase := float64(i) / float64(bars-1)
-		amp := 0.18 + 0.82*math.Abs(math.Sin(phase*math.Pi*3.2+0.6))*0.65 + 0.35*hashNoise(i*17, h)
+		phase := float64(i) / float64(maxInt(1, bars-1))
+		amp := 0.20 + 0.80*(0.50*math.Abs(math.Sin(phase*math.Pi*3.0+0.6))+0.28*math.Abs(math.Sin(phase*math.Pi*7.2+0.1))+0.22*hashNoise(i*17, h))
 		barH := int(float64(h) * clamp01(amp))
 		if barH < 8 {
 			barH = 8
 		}
 		bx := x + i*(barW+gap)
 		by := mid - barH/2
-		col := mixColor(base, accent, 0.25+0.55*phase)
-		drawRoundedRect(dst, bx, by, barW, barH, barW/2, colorWithAlpha(col, 72))
+		col := mixColor(base, accent, 0.14+0.34*phase)
+		drawRoundedRect(dst, bx, by, barW, barH, barW/2, colorWithAlpha(col, 58))
 	}
 }
 
@@ -1159,11 +1238,11 @@ func drawReflection(dst *image.RGBA, x, y, w, h, radius int) {
 }
 
 func drawInnerHighlight(dst *image.RGBA, x, y, w, h, radius int, c color.RGBA) {
-	band := 16
+	band := 14
 	for py := 0; py < h; py++ {
 		for px := 0; px < w; px++ {
 			outer := roundedCoverage(px, py, w, h, float64(radius))
-			inner := roundedCoverage(px-band, py-band, w-2*band, h-2*band, math.Max(0, float64(radius-band)))
+			inner := roundedCoverageInset(px, py, w, h, band, float64(radius))
 			cov := outer - inner
 			if cov <= 0 {
 				continue
@@ -1353,7 +1432,7 @@ func drawRoundedRectBorderAA(dst *image.RGBA, x, y, w, h, radius int, c color.RG
 	for py := -thickness; py < h+thickness; py++ {
 		for px := -thickness; px < w+thickness; px++ {
 			outer := roundedCoverage(px, py, w, h, float64(radius))
-			inner := roundedCoverage(px, py, w, h, math.Max(0, float64(radius-thickness)))
+			inner := roundedCoverageInset(px, py, w, h, thickness, float64(radius))
 			cov := outer - inner
 			if cov <= 0 {
 				continue
@@ -1361,6 +1440,15 @@ func drawRoundedRectBorderAA(dst *image.RGBA, x, y, w, h, radius int, c color.RG
 			blendPixel(dst, x+px, y+py, color.RGBA{c.R, c.G, c.B, uint8(float64(c.A) * cov)})
 		}
 	}
+}
+
+func roundedCoverageInset(x, y, w, h, inset int, radius float64) float64 {
+	iw := w - inset*2
+	ih := h - inset*2
+	if iw <= 0 || ih <= 0 {
+		return 0
+	}
+	return roundedCoverage(x-inset, y-inset, iw, ih, math.Max(0, radius-float64(inset)))
 }
 
 func drawHorizontalGradientRoundedRect(dst *image.RGBA, x, y, w, h, radius int, left, right color.RGBA) {
