@@ -98,32 +98,45 @@ type palette struct {
 }
 
 type layout struct {
-	SafePad       int
-	Gap           int
-	ArtSize       int
-	ArtX          int
-	ArtY          int
-	CardX         int
-	CardY         int
-	CardW         int
-	CardH         int
-	WatermarkX    int
-	WatermarkY    int
-	WatermarkW    int
-	WatermarkH    int
-	CardRadius    int
-	ArtRadius     int
-	InnerPad      int
-	TitleTop      int
-	ProgressY     int
-	ProgressH     int
-	ControlsY     int
-	VolumeY       int
-	WaveformY     int
-	WaveformH     int
-	BadgeGap      int
-	ButtonRadius  int
-	MainButtonRad int
+	SafePad         int
+	Grid            int
+	Gap             int
+	ArtSize         int
+	ArtX            int
+	ArtY            int
+	CardX           int
+	CardY           int
+	CardW           int
+	CardH           int
+	WatermarkX      int
+	WatermarkY      int
+	WatermarkW      int
+	WatermarkH      int
+	CardRadius      int
+	ArtRadius       int
+	InnerPad        int
+	ContentTop      int
+	ContentBottom   int
+	SectionGap      int
+	BadgeGap        int
+	TitleMaxSize    int
+	TitleMinSize    int
+	ArtistSize      int
+	MetaSize        int
+	TitleArtistGap  int
+	ArtistMetaGap   int
+	ProgressY       int
+	ProgressH       int
+	WaveformY       int
+	WaveformH       int
+	ControlsY       int
+	VolumeY         int
+	VolumeW         int
+	ButtonRadius    int
+	MainButtonRad   int
+	SmallControlRad int
+	ControlGap      int
+	UtilityGap      int
 }
 
 type renderer struct {
@@ -297,132 +310,195 @@ func normalizeTrack(t TrackInfo) TrackInfo {
 
 func makeLayout(scale int) layout {
 	s := scale
-	safe := 92 * s
-	gap := 54 * s
-	art := 468 * s
+	grid := 16 * s
+	safe := 96 * s
+	gap := 56 * s
+	art := 470 * s
 	cardX := safe + art + gap
 	cardW := internalW - safe - cardX
-	cardY := 168 * s
+	cardY := 154 * s
 	cardH := internalH - 2*cardY
+	inner := 72 * s
+	contentTop := cardY + 80*s
+	contentBottom := cardY + cardH - 78*s
+	progressY := cardY + cardH - 214*s
+	waveformY := progressY - 54*s
+	controlsY := progressY + 88*s
+	volumeY := controlsY + 92*s
 	return layout{
-		SafePad:       safe,
-		Gap:           gap,
-		ArtSize:       art,
-		ArtX:          safe,
-		ArtY:          (internalH - art) / 2,
-		CardX:         cardX,
-		CardY:         cardY,
-		CardW:         cardW,
-		CardH:         cardH,
-		WatermarkX:    safe,
-		WatermarkY:    76 * s,
-		WatermarkW:    312,
-		WatermarkH:    72,
-		CardRadius:    48,
-		ArtRadius:     58,
-		InnerPad:      84,
-		TitleTop:      198,
-		ProgressY:     cardY + cardH - 302,
-		ProgressH:     12,
-		ControlsY:     cardY + cardH - 164,
-		VolumeY:       cardY + cardH - 102,
-		WaveformY:     cardY + cardH - 360,
-		WaveformH:     48,
-		BadgeGap:      16,
-		ButtonRadius:  32,
-		MainButtonRad: 50,
+		SafePad:         safe,
+		Grid:            grid,
+		Gap:             gap,
+		ArtSize:         art,
+		ArtX:            safe,
+		ArtY:            (internalH - art) / 2,
+		CardX:           cardX,
+		CardY:           cardY,
+		CardW:           cardW,
+		CardH:           cardH,
+		WatermarkX:      safe,
+		WatermarkY:      72 * s,
+		WatermarkW:      180 * s,
+		WatermarkH:      40 * s,
+		CardRadius:      34 * s,
+		ArtRadius:       38 * s,
+		InnerPad:        inner,
+		ContentTop:      contentTop,
+		ContentBottom:   contentBottom,
+		SectionGap:      24 * s,
+		BadgeGap:        12 * s,
+		TitleMaxSize:    86,
+		TitleMinSize:    46,
+		ArtistSize:      38,
+		MetaSize:        22,
+		TitleArtistGap:  30,
+		ArtistMetaGap:   26,
+		ProgressY:       progressY,
+		ProgressH:       14,
+		WaveformY:       waveformY,
+		WaveformH:       20,
+		ControlsY:       controlsY,
+		VolumeY:         volumeY,
+		VolumeW:         216 * s,
+		ButtonRadius:    30,
+		MainButtonRad:   58,
+		SmallControlRad: 28,
+		ControlGap:      96,
+		UtilityGap:      56,
 	}
 }
 
 func (r *renderer) buildBackground() *image.RGBA {
 	bg := coverCropResize(r.artwork, internalW, internalH)
-	gaussianBlur(bg, 34)
-	applyTint(bg, mixColor(color.RGBA{9, 11, 15, 255}, r.palette.Dominant, 0.08), 0.34)
-	overlayVerticalGradient(bg, color.RGBA{255, 255, 255, 12}, r.palette.BackgroundTop, 0.00, 0.48)
-	overlayVerticalGradient(bg, color.RGBA{0, 0, 0, 0}, r.palette.BackgroundBot, 0.46, 1.00)
-	applyVignette(bg, 0.18)
-	addFilmGrain(bg, 0.010)
+	gaussianBlur(bg, 42)
+	diffusion := newRGBA(internalW, internalH)
+	stops := dominantStops(r.artwork, 3)
+	if len(stops) == 0 {
+		stops = []color.RGBA{r.palette.Accent}
+	}
+	for i, stop := range stops {
+		alpha := uint8(26 - i*5)
+		if alpha < 12 {
+			alpha = 12
+		}
+		glow := colorWithAlpha(mixColor(stop, color.RGBA{255, 255, 255, 255}, 0.12), alpha)
+		drawRadialGlow(diffusion, internalW/2+(i-1)*220, internalH/2-40+i*46, internalW-(i*220), internalH-(i*190), glow)
+	}
+	gaussianBlur(diffusion, 34)
+	stdDraw.Draw(bg, bg.Bounds(), diffusion, image.Point{}, stdDraw.Over)
+	applyTint(bg, color.RGBA{7, 9, 13, 255}, 0.52)
+	overlayVerticalGradient(bg, color.RGBA{255, 255, 255, 14}, color.RGBA{12, 15, 22, 76}, 0.00, 0.34)
+	overlayVerticalGradient(bg, color.RGBA{0, 0, 0, 0}, color.RGBA{3, 4, 7, 222}, 0.28, 1.00)
+	applyVignette(bg, 0.24)
+	addFilmGrain(bg, 0.020)
 	return bg
 }
 
 func (r *renderer) drawAmbient() {
-	artRect := image.Rect(r.layout.ArtX, r.layout.ArtY, r.layout.ArtX+r.layout.ArtSize, r.layout.ArtY+r.layout.ArtSize)
-	glowA := colorWithAlpha(mixColor(r.palette.Accent, color.RGBA{255, 255, 255, 255}, 0.28), 42)
-	glowB := colorWithAlpha(mixColor(r.palette.Dominant, color.RGBA{255, 255, 255, 255}, 0.20), 28)
-	drawRadialGlow(r.ambient, artRect.Min.X+artRect.Dx()/2-96, artRect.Min.Y+artRect.Dy()/2-72, artRect.Dx()+180, artRect.Dy()+180, glowA)
-	drawRadialGlow(r.ambient, artRect.Min.X+artRect.Dx()/2+140, artRect.Min.Y+artRect.Dy()/2+96, artRect.Dx()-60, artRect.Dy()-60, glowB)
-	drawRadialGlow(r.ambient, r.layout.CardX+r.layout.CardW/2, r.layout.CardY+180, r.layout.CardW+120, 240, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 18))
-	drawRadialGlow(r.ambient, r.layout.CardX+r.layout.CardW/2, r.layout.CardY+r.layout.CardH-110, r.layout.CardW+160, 180, colorWithAlpha(color.RGBA{8, 10, 16, 255}, 18))
+	artCx := r.layout.ArtX + r.layout.ArtSize/2
+	artCy := r.layout.ArtY + r.layout.ArtSize/2
+	stops := dominantStops(r.artwork, 3)
+	if len(stops) == 0 {
+		stops = []color.RGBA{r.palette.Accent}
+	}
+	for i, stop := range stops {
+		accent := colorWithAlpha(mixColor(stop, color.RGBA{255, 255, 255, 255}, 0.16), uint8(36-i*7))
+		drawRadialGlow(r.ambient, artCx+(i-1)*110, artCy-28+i*22, r.layout.ArtSize+220-i*60, r.layout.ArtSize+220-i*70, accent)
+	}
+	drawRadialGlow(r.ambient, r.layout.CardX+r.layout.CardW/2, r.layout.CardY+120, r.layout.CardW+120, 190, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 16))
+	drawRadialGlow(r.ambient, r.layout.CardX+r.layout.CardW/2, r.layout.CardY+r.layout.CardH-84, r.layout.CardW+40, 140, colorWithAlpha(color.RGBA{4, 6, 12, 255}, 24))
 }
 
 func (r *renderer) drawWatermarkCard() {
-	drawGlassPanel(r.content, r.backdrop, r.layout.WatermarkX, r.layout.WatermarkY, r.layout.WatermarkW, r.layout.WatermarkH, 28, r.palette, 0.22)
-	labelColor := colorWithAlpha(r.palette.TextSecondary, 210)
-	drawText(r.content, "ANVU MUSIC", r.layout.WatermarkX+32, r.layout.WatermarkY+47, labelColor, 24, true)
+	l := r.layout
+	drawGlassPanel(r.content, r.backdrop, l.WatermarkX, l.WatermarkY, l.WatermarkW, l.WatermarkH, l.WatermarkH/2, r.palette, 0.20)
+	label := "ANVU MUSIC"
+	labelX := l.WatermarkX + 24
+	baseline := l.WatermarkY + l.WatermarkH/2 + 10
+	drawText(r.content, label, labelX, baseline, colorWithAlpha(r.palette.TextSecondary, 210), 20, true)
 	sub := strings.ToUpper(strings.TrimSpace(r.track.Source))
 	if sub != "" {
-		drawText(r.content, sub, r.layout.WatermarkX+188, r.layout.WatermarkY+47, colorWithAlpha(r.palette.TextMuted, 175), 19, false)
+		subW := measureText(sub, 16, false)
+		subX := l.WatermarkX + l.WatermarkW - subW - 20
+		if subX > labelX+measureText(label, 20, true)+20 {
+			drawText(r.content, sub, subX, baseline, colorWithAlpha(r.palette.TextMuted, 170), 16, false)
+		}
 	}
 }
 
 func (r *renderer) drawArtwork() {
 	x, y, size := r.layout.ArtX, r.layout.ArtY, r.layout.ArtSize
-	drawShadowRect(r.content, x-20, y+22, size+40, size+40, r.layout.ArtRadius+22, colorWithAlpha(r.palette.Shadow, 128), 30)
-	drawShadowRect(r.content, x-10, y+10, size+20, size+20, r.layout.ArtRadius+14, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 22), 16)
+	drawShadowRect(r.content, x-10, y+28, size+20, size+20, r.layout.ArtRadius+12, colorWithAlpha(r.palette.Shadow, 110), 22)
+	drawShadowRect(r.content, x-2, y+10, size+4, size+6, r.layout.ArtRadius+4, colorWithAlpha(color.RGBA{0, 0, 0, 255}, 38), 10)
 	pasteRoundedAA(r.content, r.albumArt, x, y, size, size, r.layout.ArtRadius)
-	drawRoundedRectBorderAA(r.content, x, y, size, size, r.layout.ArtRadius, color.RGBA{255, 255, 255, 104}, 2)
-	drawInnerHighlight(r.content, x, y, size, size, r.layout.ArtRadius, color.RGBA{255, 255, 255, 44})
+	drawRoundedRectBorderAA(r.content, x, y, size, size, r.layout.ArtRadius, color.RGBA{255, 255, 255, 76}, 1)
+	drawInnerHighlight(r.content, x, y, size, size, r.layout.ArtRadius, color.RGBA{255, 255, 255, 26})
 	drawReflection(r.content, x, y, size, size, r.layout.ArtRadius)
 }
 
 func (r *renderer) drawInfoCard() {
 	l := r.layout
-	drawGlassPanel(r.content, r.backdrop, l.CardX, l.CardY, l.CardW, l.CardH, l.CardRadius, r.palette, 0.28)
+	drawGlassPanel(r.content, r.backdrop, l.CardX, l.CardY, l.CardW, l.CardH, l.CardRadius, r.palette, 0.26)
 	innerX := l.CardX + l.InnerPad
 	innerW := l.CardW - 2*l.InnerPad
-	top := l.CardY + 92
+	headerY := l.ContentTop
 
-	drawText(r.content, "NOW PLAYING", innerX, top, colorWithAlpha(r.palette.TextMuted, 190), 24, true)
+	drawText(r.content, "NOW PLAYING", innerX, headerY, colorWithAlpha(r.palette.TextMuted, 176), 22, true)
 	if r.track.Premium {
-		drawChip(r.content, innerX+208, top-32, "PREMIUM", 20, colorWithAlpha(r.palette.Accent, 56), colorWithAlpha(r.palette.TextPrimary, 214), 16, true)
+		premiumW := measureText("PREMIUM", 16, true) + 34
+		drawChip(r.content, innerX+innerW-premiumW, headerY-24, "PREMIUM", premiumW, colorWithAlpha(r.palette.Accent, 34), colorWithAlpha(r.palette.TextPrimary, 224), 16, true)
 	}
 
-	title := layoutTitle(r.track.Title, innerW, 2, 86, 52, true)
-	titleY := l.CardY + l.TitleTop
+	title := layoutTitle(r.track.Title, innerW, 2, l.TitleMaxSize, l.TitleMinSize, true)
+	titleY := headerY + 56
 	for i, line := range title.Lines {
 		drawText(r.content, line, innerX, titleY+i*title.LineHeight, r.palette.TextPrimary, title.Size, true)
 	}
-	artistY := titleY + title.Height + 38
-	drawText(r.content, r.track.Artist, innerX, artistY, r.palette.TextSecondary, 38, false)
-	cursorX := innerX + measureText(r.track.Artist, 38, false) + 18
+
+	artistY := titleY + title.Height + l.TitleArtistGap
+	drawText(r.content, r.track.Artist, innerX, artistY, r.palette.TextSecondary, l.ArtistSize, false)
+	cursorX := innerX + measureText(r.track.Artist, l.ArtistSize, false) + 18
 	if r.track.Verified {
-		drawVerifiedBadge(r.content, cursorX, artistY-23, 18)
-		cursorX += 46
-	}
-	if album := strings.TrimSpace(r.track.Album); album != "" {
-		drawText(r.content, album, innerX, artistY+46, colorWithAlpha(r.palette.TextMuted, 196), 28, false)
+		drawVerifiedBadge(r.content, cursorX, artistY-22, 16)
 	}
 
-	badgeY := artistY + 82
-	metaRowH := r.drawBadges(innerX, badgeY, innerW)
-	metaY := badgeY + metaRowH + 30
-	r.drawMetadata(innerX, metaY, innerW)
+	nextY := artistY + l.ArtistMetaGap
+	if album := strings.TrimSpace(r.track.Album); album != "" {
+		drawText(r.content, album, innerX, nextY, colorWithAlpha(r.palette.TextMuted, 186), 26, false)
+		nextY += 38
+	}
+	nextY += l.Grid
+
+	if nextY < l.ProgressY-110 {
+		badgeH := r.drawBadges(innerX, nextY, innerW)
+		if badgeH > 0 {
+			nextY += badgeH + l.SectionGap
+		}
+	}
+	if nextY < l.ProgressY-44 {
+		metaH := r.drawMetadata(innerX, nextY, innerW)
+		if metaH > 0 {
+			nextY += metaH + l.SectionGap
+		}
+	}
+
 	r.drawProgress(innerX, innerW)
 	r.drawControls(innerX, innerW)
 	r.drawVolume(innerX, innerW)
-	drawText(r.content, "ANVU MUSIC", l.CardX+l.CardW-216, l.CardY+l.CardH-42, colorWithAlpha(r.palette.TextMuted, 72), 18, true)
+	footer := "ANVU MUSIC"
+	footerX := l.CardX + l.CardW - l.InnerPad - measureText(footer, 16, true)
+	drawText(r.content, footer, footerX, l.CardY+l.CardH-38, colorWithAlpha(r.palette.TextMuted, 68), 16, true)
 }
 
 func (r *renderer) drawBadges(x, y, maxW int) int {
-	items := make([]string, 0, 8)
+	items := make([]string, 0, 5)
 	if r.track.Explicit {
 		items = append(items, "EXPLICIT")
 	}
-	if r.track.HQ {
-		items = append(items, "HQ")
-	}
 	if r.track.Lossless {
 		items = append(items, "LOSSLESS")
+	} else if r.track.HQ {
+		items = append(items, "HI-RES")
 	}
 	if r.track.DolbyAtmos {
 		items = append(items, "DOLBY ATMOS")
@@ -430,123 +506,154 @@ func (r *renderer) drawBadges(x, y, maxW int) int {
 	if r.track.Lyrics {
 		items = append(items, "LYRICS")
 	}
-	if r.track.Source != "" {
-		items = append(items, strings.ToUpper(r.track.Source))
+	if r.track.Premium {
+		items = append(items, "PREMIUM")
 	}
 	if len(items) == 0 {
 		return 0
 	}
 	cx := x
 	cy := y
-	rowH := 38
+	rowH := 36
 	for _, item := range items {
-		w := measureText(item, 16, true) + 34
+		w := measureText(item, 16, true) + 40
 		if cx+w > x+maxW {
 			cx = x
-			cy += rowH + 14
+			cy += rowH + 12
 		}
-		drawChip(r.content, cx, cy-24, item, w, colorWithAlpha(r.palette.TextPrimary, 24), colorWithAlpha(r.palette.TextPrimary, 224), 16, true)
+		drawChip(r.content, cx, cy, item, w, colorWithAlpha(r.palette.TextPrimary, 20), colorWithAlpha(r.palette.TextPrimary, 214), 16, true)
 		cx += w + r.layout.BadgeGap
 	}
 	return cy - y + rowH
 }
 
-func (r *renderer) drawMetadata(x, y, maxW int) {
+func (r *renderer) drawMetadata(x, y, maxW int) int {
 	values := make([]string, 0, 4)
-	if strings.TrimSpace(r.track.Views) != "" {
-		values = append(values, r.track.Views)
-	}
 	if strings.TrimSpace(r.track.Duration) != "" {
 		values = append(values, r.track.Duration)
+	}
+	if strings.TrimSpace(r.track.Views) != "" {
+		values = append(values, r.track.Views)
 	}
 	if strings.TrimSpace(r.track.Quality) != "" {
 		values = append(values, r.track.Quality)
 	}
-	if strings.TrimSpace(r.track.Source) != "" {
+	if strings.TrimSpace(r.track.Source) != "" && len(values) < 4 {
 		values = append(values, r.track.Source)
 	}
 	if len(values) == 0 {
-		return
+		return 0
 	}
 	line := strings.Join(values, "   •   ")
-	block := layoutTitle(line, maxW, 2, 24, 18, false)
-	for i, l := range block.Lines {
-		drawText(r.content, l, x, y+i*block.LineHeight, colorWithAlpha(r.palette.TextMuted, 196), block.Size, false)
+	block := layoutTitle(line, maxW, 2, r.layout.MetaSize, maxInt(18, r.layout.MetaSize-4), false)
+	for i, ln := range block.Lines {
+		drawText(r.content, ln, x, y+i*block.LineHeight, colorWithAlpha(r.palette.TextMuted, 190), block.Size, false)
 	}
+	return block.Height
 }
 
 func (r *renderer) drawProgress(x, width int) {
 	l := r.layout
-	waveY := l.WaveformY
-	drawWaveform(r.content, x, waveY, width, l.WaveformH, colorWithAlpha(r.palette.TextPrimary, 38), r.palette.Accent)
+	drawWaveform(r.content, x, l.WaveformY, width, l.WaveformH, colorWithAlpha(r.palette.TextPrimary, 28), colorWithAlpha(r.palette.Accent, 76))
 
 	progress := resolveProgress(r.track)
 	elapsed, total, remaining := resolveTimes(r.track, progress)
 	trackY := l.ProgressY
-	drawRoundedRect(r.content, x, trackY, width, l.ProgressH, l.ProgressH/2, colorWithAlpha(r.palette.TrackRemainder, 148))
+	trackRadius := l.ProgressH / 2
+	drawRoundedRect(r.content, x, trackY, width, l.ProgressH, trackRadius, colorWithAlpha(r.palette.TrackRemainder, 118))
 	fillW := int(float64(width) * progress)
-	if fillW < l.ProgressH {
-		fillW = l.ProgressH
-		if progress == 0 {
-			fillW = 0
-		}
+	if fillW < 0 {
+		fillW = 0
+	}
+	if fillW > width {
+		fillW = width
 	}
 	if fillW > 0 {
-		drawHorizontalGradientRoundedRect(r.content, x, trackY, fillW, l.ProgressH, l.ProgressH/2, colorWithAlpha(lightenColor(r.palette.Accent, 18), 232), colorWithAlpha(r.palette.Accent, 240))
-		knobX := clampInt(x+l.ProgressH/2, x+width-l.ProgressH/2, x+fillW)
-		drawCircleAA(r.content, knobX, trackY+l.ProgressH/2, 9, color.RGBA{255, 255, 255, 248})
-		drawCircleBorder(r.content, knobX, trackY+l.ProgressH/2, 9, colorWithAlpha(r.palette.Accent, 86), 2)
+		drawHorizontalGradientRoundedRect(r.content, x, trackY, fillW, l.ProgressH, trackRadius, colorWithAlpha(lightenColor(r.palette.Accent, 14), 226), colorWithAlpha(r.palette.Accent, 238))
+		highlightW := maxInt(10, fillW)
+		drawHorizontalGradientRoundedRect(r.content, x, trackY+1, highlightW, 4, 2, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 72), colorWithAlpha(lightenColor(r.palette.Accent, 28), 18))
+		knobX := clampInt(x+trackRadius, x+width-trackRadius, x+fillW)
+		drawShadowCircle(r.content, knobX, trackY+trackRadius+2, 16, colorWithAlpha(r.palette.Accent, 54), 12)
+		drawCircleAA(r.content, knobX, trackY+trackRadius, 10, color.RGBA{255, 255, 255, 246})
+		drawCircleBorder(r.content, knobX, trackY+trackRadius, 10, colorWithAlpha(r.palette.Accent, 92), 1)
 	}
-	labelY := trackY + 48
-	drawText(r.content, elapsed, x, labelY, colorWithAlpha(r.palette.TextSecondary, 215), 22, false)
-	totalW := measureText(total, 22, false)
-	drawText(r.content, total, x+width/2-totalW/2, labelY, colorWithAlpha(r.palette.TextMuted, 170), 22, false)
-	remainingW := measureText(remaining, 22, false)
-	drawText(r.content, remaining, x+width-remainingW, labelY, colorWithAlpha(r.palette.TextSecondary, 215), 22, false)
+	labelY := trackY + 44
+	drawText(r.content, elapsed, x, labelY, colorWithAlpha(r.palette.TextSecondary, 210), 20, false)
+	totalW := measureText(total, 20, false)
+	drawText(r.content, total, x+width/2-totalW/2, labelY, colorWithAlpha(r.palette.TextMuted, 164), 20, false)
+	remainingW := measureText(remaining, 20, false)
+	drawText(r.content, remaining, x+width-remainingW, labelY, colorWithAlpha(r.palette.TextSecondary, 210), 20, false)
 }
 
 func (r *renderer) drawControls(x, width int) {
 	cy := r.layout.ControlsY
 	center := x + width/2
-	gap := 94
-	iconColor := colorWithAlpha(r.palette.TextPrimary, 232)
-	mutedColor := colorWithAlpha(r.palette.TextPrimary, 176)
+	gap := r.layout.ControlGap
+	iconColor := colorWithAlpha(r.palette.TextPrimary, 230)
 
-	if r.track.ShuffleEnabled {
-		drawIconShuffle(r.content, center-gap*2-48, cy, 18, mutedColor)
-	}
-	drawIconPrevious(r.content, center-gap, cy, 20, iconColor)
-	drawControlButton(r.content, center, cy, r.layout.MainButtonRad, colorWithAlpha(r.palette.Accent, 238), colorWithAlpha(r.palette.Glow, 90))
+	drawSecondaryControlButton(r.content, center-gap, cy, r.layout.SmallControlRad, false, r.palette)
+	drawIconPrevious(r.content, center-gap, cy, 18, iconColor)
+
+	drawControlButton(r.content, center, cy, r.layout.MainButtonRad, colorWithAlpha(r.palette.Accent, 236), colorWithAlpha(r.palette.Glow, 76))
 	if r.track.IsPlaying {
-		drawIconPause(r.content, center, cy, 22, color.RGBA{255, 255, 255, 255})
+		drawIconPause(r.content, center, cy, 24, color.RGBA{255, 255, 255, 255})
 	} else {
-		drawIconPlay(r.content, center+2, cy, 24, color.RGBA{255, 255, 255, 255})
+		drawIconPlay(r.content, center+2, cy, 25, color.RGBA{255, 255, 255, 255})
 	}
-	drawIconNext(r.content, center+gap, cy, 20, iconColor)
-	drawIconRepeat(r.content, center+gap*2+48, cy, 18, mutedColor)
 
-	utilityX := x + width - 150
-	if r.track.Lyrics {
-		drawIconLyrics(r.content, utilityX, cy, 18, mutedColor)
-		utilityX += 54
-	}
-	if r.track.QueueEnabled {
-		drawIconQueue(r.content, utilityX, cy, 18, mutedColor)
-	}
+	drawSecondaryControlButton(r.content, center+gap, cy, r.layout.SmallControlRad, false, r.palette)
+	drawIconNext(r.content, center+gap, cy, 18, iconColor)
 }
 
 func (r *renderer) drawVolume(x, width int) {
-	cy := r.layout.VolumeY
-	sliderW := 190
+	l := r.layout
+	cy := l.VolumeY
+	cursor := x
+	iconColor := colorWithAlpha(r.palette.TextSecondary, 196)
+	activeColor := colorWithAlpha(r.palette.Accent, 236)
+
+	if r.track.ShuffleEnabled {
+		drawSecondaryControlButton(r.content, cursor+l.SmallControlRad, cy, l.SmallControlRad, true, r.palette)
+		drawIconShuffle(r.content, cursor+l.SmallControlRad, cy, 14, activeColor)
+		cursor += l.UtilityGap
+	}
+	if strings.TrimSpace(r.track.RepeatMode) != "" {
+		active := strings.ToLower(strings.TrimSpace(r.track.RepeatMode)) != "off"
+		drawSecondaryControlButton(r.content, cursor+l.SmallControlRad, cy, l.SmallControlRad, active, r.palette)
+		col := iconColor
+		if active {
+			col = activeColor
+		}
+		drawIconRepeat(r.content, cursor+l.SmallControlRad, cy, 14, col)
+		cursor += l.UtilityGap
+	}
+	if r.track.Lyrics {
+		drawSecondaryControlButton(r.content, cursor+l.SmallControlRad, cy, l.SmallControlRad, false, r.palette)
+		drawIconLyrics(r.content, cursor+l.SmallControlRad, cy, 14, iconColor)
+		cursor += l.UtilityGap
+	}
+	if r.track.QueueEnabled {
+		drawSecondaryControlButton(r.content, cursor+l.SmallControlRad, cy, l.SmallControlRad, false, r.palette)
+		drawIconQueue(r.content, cursor+l.SmallControlRad, cy, 14, iconColor)
+		cursor += l.UtilityGap
+	}
+
+	sliderW := l.VolumeW
 	sliderX := x + width - sliderW
-	drawIconVolume(r.content, sliderX-34, cy, 16, colorWithAlpha(r.palette.TextSecondary, 220))
-	drawRoundedRect(r.content, sliderX, cy-7, sliderW, 10, 5, colorWithAlpha(r.palette.TrackRemainder, 156))
+	if cursor > x {
+		sliderX = maxInt(cursor+24, sliderX)
+		sliderW = maxInt(160, x+width-sliderX)
+	}
+	drawIconVolume(r.content, sliderX-36, cy, 15, colorWithAlpha(r.palette.TextSecondary, 214))
+	drawRoundedRect(r.content, sliderX, cy-7, sliderW, 10, 5, colorWithAlpha(r.palette.TrackRemainder, 134))
 	fill := int(float64(sliderW) * clamp01(r.track.Volume))
 	if fill > 0 {
-		drawHorizontalGradientRoundedRect(r.content, sliderX, cy-7, fill, 10, 5, colorWithAlpha(lightenColor(r.palette.Accent, 20), 220), colorWithAlpha(r.palette.Accent, 226))
+		drawHorizontalGradientRoundedRect(r.content, sliderX, cy-7, fill, 10, 5, colorWithAlpha(lightenColor(r.palette.Accent, 18), 214), colorWithAlpha(r.palette.Accent, 228))
+		highlightW := maxInt(12, fill)
+		drawHorizontalGradientRoundedRect(r.content, sliderX, cy-6, highlightW, 3, 2, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 72), colorWithAlpha(color.RGBA{255, 255, 255, 255}, 0))
 		knobX := clampInt(sliderX+5, sliderX+sliderW-5, sliderX+fill)
-		drawCircleAA(r.content, knobX, cy-2, 7, color.RGBA{255, 255, 255, 244})
-		drawCircleBorder(r.content, knobX, cy-2, 7, colorWithAlpha(r.palette.Accent, 76), 2)
+		drawCircleAA(r.content, knobX, cy-2, 7, color.RGBA{255, 255, 255, 242})
+		drawCircleBorder(r.content, knobX, cy-2, 7, colorWithAlpha(r.palette.Accent, 74), 1)
 	}
 }
 
@@ -636,15 +743,23 @@ func ellipsizeToWidth(text string, maxWidth, size int, bold bool) string {
 	if text == "" || measureText(text, size, bold) <= maxWidth {
 		return text
 	}
-	runes := []rune(text)
-	for len(runes) > 1 {
-		runes = runes[:len(runes)-1]
-		candidate := strings.TrimSpace(string(runes)) + "…"
-		if measureText(candidate, size, bold) <= maxWidth {
+	words := strings.Fields(text)
+	for len(words) > 1 {
+		words = words[:len(words)-1]
+		candidate := strings.Join(words, " ")
+		if candidate != "" && measureText(candidate, size, bold) <= maxWidth {
 			return candidate
 		}
 	}
-	return "…"
+	runes := []rune(text)
+	for len(runes) > 0 {
+		runes = runes[:len(runes)-1]
+		candidate := strings.TrimSpace(string(runes))
+		if candidate != "" && measureText(candidate, size, bold) <= maxWidth {
+			return candidate
+		}
+	}
+	return ""
 }
 
 func lineHeight(size int, bold bool) int {
@@ -1074,25 +1189,41 @@ func addFilmGrain(img *image.RGBA, intensity float64) {
 }
 
 func drawGlassPanel(dst, backdrop *image.RGBA, x, y, w, h, radius int, pal palette, fillStrength float64) {
-	drawShadowRect(dst, x, y+18, w, h, radius, colorWithAlpha(color.RGBA{8, 10, 16, 255}, 54), 24)
+	drawShadowRect(dst, x, y+10, w, h, radius, colorWithAlpha(color.RGBA{7, 9, 14, 255}, 42), 18)
+	drawShadowRect(dst, x, y+2, w, h, radius, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 6), 10)
 	region := sampleRegion(backdrop, x, y, w, h)
-	gaussianBlur(region, 22)
+	gaussianBlur(region, 28)
 	for py := 0; py < h; py++ {
+		topT := 1 - clamp01(float64(py)/math.Max(1, float64(h-1)))
 		for px := 0; px < w; px++ {
 			cov := roundedCoverage(px, py, w, h, float64(radius))
 			if cov <= 0 {
 				continue
 			}
 			base := region.RGBAAt(px, py)
-			lift := 0.10 + fillStrength*0.16 + math.Pow(1-clamp01(float64(py)/float64(h)*1.35), 2)*0.08
-			glass := mixColor(base, color.RGBA{255, 255, 255, 255}, lift)
-			glass = mixColor(glass, pal.Accent, 0.04)
-			alpha := uint8((88 + fillStrength*84) * cov)
+			glass := mixColor(base, color.RGBA{255, 255, 255, 255}, 0.16+fillStrength*0.12+topT*0.06)
+			glass = mixColor(glass, pal.Accent, 0.025)
+			glass = mixColor(glass, color.RGBA{236, 240, 248, 255}, 0.04+topT*0.05)
+			alpha := uint8((70 + fillStrength*74) * (0.36 + 0.64*cov))
 			blendPixel(dst, x+px, y+py, color.RGBA{glass.R, glass.G, glass.B, alpha})
+			if py < h/4 {
+				shine := uint8(float64(28) * math.Pow(topT, 2) * cov)
+				blendPixel(dst, x+px, y+py, color.RGBA{255, 255, 255, shine})
+			}
 		}
 	}
-	drawInnerHighlight(dst, x, y, w, h, radius, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 34))
-	drawRoundedRectBorderAA(dst, x, y, w, h, radius, pal.CardStroke, 2)
+	drawVerticalGradientRoundedRect(dst, x, y, w, h, radius, color.RGBA{255, 255, 255, 24}, color.RGBA{255, 255, 255, 6})
+	for py := int(float64(h) * 0.66); py < h; py++ {
+		shadowAlpha := uint8(float64(py-(h*2/3)) / float64(maxInt(1, h/3)) * 16)
+		for px := 0; px < w; px++ {
+			cov := roundedCoverage(px, py, w, h, float64(radius))
+			if cov > 0 {
+				blendPixel(dst, x+px, y+py, color.RGBA{0, 0, 0, uint8(float64(shadowAlpha) * cov)})
+			}
+		}
+	}
+	drawInnerHighlight(dst, x, y, w, h, radius, colorWithAlpha(color.RGBA{255, 255, 255, 255}, 22))
+	drawRoundedRectBorderAA(dst, x, y, w, h, radius, color.RGBA{255, 255, 255, 56}, 1)
 }
 
 func sampleRegion(src *image.RGBA, x, y, w, h int) *image.RGBA {
@@ -1114,8 +1245,8 @@ func drawChip(dst *image.RGBA, x, y int, label string, width int, fill, fg color
 }
 
 func drawWaveform(dst *image.RGBA, x, y, w, h int, base, accent color.RGBA) {
-	bars := 58
-	gap := 6
+	bars := 72
+	gap := 5
 	barW := (w - gap*(bars-1)) / bars
 	if barW < 2 {
 		barW = 2
@@ -1123,15 +1254,17 @@ func drawWaveform(dst *image.RGBA, x, y, w, h int, base, accent color.RGBA) {
 	mid := y + h/2
 	for i := 0; i < bars; i++ {
 		phase := float64(i) / float64(maxInt(1, bars-1))
-		amp := 0.20 + 0.80*(0.50*math.Abs(math.Sin(phase*math.Pi*3.0+0.6))+0.28*math.Abs(math.Sin(phase*math.Pi*7.2+0.1))+0.22*hashNoise(i*17, h))
-		barH := int(float64(h) * clamp01(amp))
-		if barH < 8 {
-			barH = 8
-		}
+		amp := 0.24 + 0.58*(0.55*math.Abs(math.Sin(phase*math.Pi*2.4+0.4))+0.24*math.Abs(math.Sin(phase*math.Pi*6.4+0.2))+0.20*hashNoise(i*17, h))
+		barH := maxInt(6, int(float64(h)*clamp01(amp)))
 		bx := x + i*(barW+gap)
 		by := mid - barH/2
-		col := mixColor(base, accent, 0.14+0.34*phase)
-		drawRoundedRect(dst, bx, by, barW, barH, barW/2, colorWithAlpha(col, 58))
+		col := mixColor(base, accent, 0.28)
+		alpha := uint8(34)
+		if phase <= 0.45 {
+			col = mixColor(base, accent, 0.46)
+			alpha = 52
+		}
+		drawRoundedRect(dst, bx, by, barW, barH, maxInt(1, barW/2), colorWithAlpha(col, alpha))
 	}
 }
 
@@ -1143,9 +1276,18 @@ func drawVerifiedBadge(dst *image.RGBA, x, y, r int) {
 }
 
 func drawControlButton(dst *image.RGBA, x, y, r int, fill, glow color.RGBA) {
-	drawShadowCircle(dst, x, y+4, r+10, glow, 14)
+	drawShadowCircle(dst, x, y+6, r+10, colorWithAlpha(glow, 48), 18)
+	drawShadowCircle(dst, x, y+2, r+4, colorWithAlpha(fill, 32), 10)
 	drawCircleAA(dst, x, y, r, fill)
-	drawCircleBorder(dst, x, y, r, color.RGBA{255, 255, 255, 82}, 2)
+	drawCircleBorder(dst, x, y, r, color.RGBA{255, 255, 255, 76}, 1)
+	for py := -r; py < 0; py++ {
+		alpha := uint8(float64(18) * math.Pow(1-float64(py+r)/float64(maxInt(1, r)), 2))
+		for px := -r; px <= r; px++ {
+			if px*px+py*py <= r*r {
+				blendPixel(dst, x+px, y+py, color.RGBA{255, 255, 255, alpha})
+			}
+		}
+	}
 }
 
 func drawIconPlay(dst *image.RGBA, x, y, size int, c color.RGBA) {
@@ -1463,6 +1605,34 @@ func drawHorizontalGradientRoundedRect(dst *image.RGBA, x, y, w, h, radius int, 
 			blendPixel(dst, x+px, y+py, color.RGBA{c.R, c.G, c.B, uint8(float64(c.A) * cov)})
 		}
 	}
+}
+
+func drawVerticalGradientRoundedRect(dst *image.RGBA, x, y, w, h, radius int, top, bottom color.RGBA) {
+	for py := 0; py < h; py++ {
+		for px := 0; px < w; px++ {
+			cov := roundedCoverage(px, py, w, h, float64(radius))
+			if cov <= 0 {
+				continue
+			}
+			t := float64(py) / math.Max(1, float64(h-1))
+			c := mixColor(top, bottom, t)
+			blendPixel(dst, x+px, y+py, color.RGBA{c.R, c.G, c.B, uint8(float64(c.A) * cov)})
+		}
+	}
+}
+
+func drawSecondaryControlButton(dst *image.RGBA, x, y, r int, active bool, pal palette) {
+	fill := colorWithAlpha(color.RGBA{255, 255, 255, 255}, 14)
+	border := color.RGBA{255, 255, 255, 44}
+	glow := colorWithAlpha(pal.Glow, 18)
+	if active {
+		fill = colorWithAlpha(mixColor(pal.Accent, color.RGBA{255, 255, 255, 255}, 0.24), 40)
+		border = colorWithAlpha(lightenColor(pal.Accent, 10), 82)
+		glow = colorWithAlpha(pal.Glow, 34)
+	}
+	drawShadowCircle(dst, x, y+3, r+5, glow, 10)
+	drawCircleAA(dst, x, y, r, fill)
+	drawCircleBorder(dst, x, y, r, border, 1)
 }
 
 func blendPixel(img *image.RGBA, x, y int, src color.RGBA) {
