@@ -309,6 +309,11 @@ func SafeMessageHandler(
 			err = handler(m)
 		}
 
+		// Auto-delete the command message when the chat has that setting enabled.
+		if err == nil || errors.Is(err, tg.ErrEndGroup) {
+			maybeDeleteCommand(m)
+		}
+
 		if err != nil {
 			if errors.Is(err, tg.ErrEndGroup) {
 				gologging.Debug("Handler exited early (ErrEndGroup)")
@@ -321,6 +326,23 @@ func SafeMessageHandler(
 		}
 
 		return err
+	}
+}
+
+// maybeDeleteCommand removes the command message if the chat has command
+// auto-delete enabled. Only applies to group commands.
+func maybeDeleteCommand(m *tg.NewMessage) {
+	if m == nil || !m.IsGroup() {
+		return
+	}
+
+	enabled, err := database.CmdDelete(m.ChannelID())
+	if err != nil || !enabled {
+		return
+	}
+
+	if err := m.Delete(); err != nil {
+		gologging.DebugF("Failed to delete command message: %v", err)
 	}
 }
 
