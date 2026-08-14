@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
  * Copyright (C) 2026 Team Echo
@@ -29,13 +29,15 @@ import (
 type actionHandler func(*tg.CallbackQuery, *core.RoomState, int64) error
 
 var actionHandlers = map[string]actionHandler{
-	"pause":  handlePauseAction,
-	"resume": handleResumeAction,
-	"replay": handleReplayAction,
-	"skip":   handleSkipAction,
-	"stop":   handleStopAction,
-	"mute":   handleMuteAction,
-	"unmute": handleUnmuteAction,
+	"pause":    handlePauseAction,
+	"resume":   handleResumeAction,
+	"replay":   handleReplayAction,
+	"skip":     handleSkipAction,
+	"stop":     handleStopAction,
+	"mute":     handleMuteAction,
+	"unmute":   handleUnmuteAction,
+	"autoplay": handleAutoplayAction,
+	"playlist": handleAddToPlaylistAction,
 }
 
 func cancelHandler(cb *tg.CallbackQuery) error {
@@ -472,6 +474,174 @@ func handleUnmuteAction(
 
 	cb.Answer(F(cb.ChannelID(), "cb_unmute_success"), opt)
 	updatePlaybackMessage(cb, r, "playing")
+	return tg.ErrEndGroup
+}
+
+func handleAutoplayAction(
+	cb *tg.CallbackQuery,
+	r *core.RoomState,
+	chatID int64,
+) error {
+	opt := &tg.CallbackOptions{Alert: true}
+
+	next := !r.Autoplay()
+	r.SetAutoplay(next)
+
+	if next {
+		cb.Answer(F(cb.ChannelID(), "cb_autoplay_enabled"), opt)
+	} else {
+		cb.Answer(F(cb.ChannelID(), "cb_autoplay_disabled"), opt)
+	}
+
+	// Refresh the panel so the button reflects the new state
+	msg, err := cb.GetMessage()
+	if err != nil {
+		return tg.ErrEndGroup
+	}
+	if _, err := cb.Edit(msg.Text(), &tg.SendOptions{
+		ParseMode:   "HTML",
+		ReplyMarkup: core.GetPlayMarkup(cb.ChannelID(), r, false),
+	}); err != nil {
+		gologging.ErrorF("Edit error: %v", err)
+	}
+
+	return tg.ErrEndGroup
+}
+
+// playlistPickerRooms remembers which room chat a user's playlist picker was
+// opened from (userID → room chatID). This keeps the picker working for
+// channel-play setups, where the panel lives in the group but the room is
+// keyed by the linked channel.
+var playlistPickerRooms = make(map[int64]int64)
+
+// handleAddToPlaylistAction opens a playlist picker so the caller can choose
+// which playlist to save the currently playing track into.
+func handleAddToPlaylistAction(
+	cb *tg.CallbackQuery,
+	r *core.RoomState,
+	chatID int64,
+) error {
+	opt := &tg.CallbackOptions{Alert: true}
+
+	track := r.Track()
+	if track == nil || track.ID == "" {
+		cb.Answer(F(cb.ChannelID(), "playlist_nothing_to_add"), opt)
+		return tg.ErrEndGroup
+	}
+
+	playlists, err := database.GetUserPlaylists(cb.SenderID)
+	if err != nil {
+		cb.Answer(F(cb.ChannelID(), "playlist_fetch_failed"), opt)
+		return tg.ErrEndGroup
+	}
+
+	playlistPickerRooms[cb.SenderID] = chatID
+
+	title := html.EscapeString(utils.ShortTitle(track.Title, 40))
+	key := "playlist_picker_title"
+	if len(playlists) == 0 {
+		key = "playlist_picker_empty"
+	}
+
+	if _, err := cb.Respond(F(cb.ChannelID(), key, locales.Arg{
+		"title": title,
+	}), &tg.SendOptions{
+		ParseMode:   "HTML",
+		ReplyMarkup: core.GetPlaylistPickerMarkup(cb.ChannelID(), playlists),
+	}); err != nil {
+		gologging.ErrorF("Failed to send playlist picker: %v", err)
+		return tg.ErrEndGroup
+	}
+
+	cb.Answer(F(cb.ChannelID(), "playlist_picker_open"), opt)
+	return tg.ErrEndGroup
+}
+
+// playlistPickCallback saves the currently playing track into the playlist
+// chosen from the picker (or a newly created one via "plist:create").
+func playlistPickCallback(cb *tg.CallbackQuery) error {
+	opt := &tg.CallbackOptions{Alert: true}
+	chatID := cb.ChannelID()
+	userID := cb.SenderID
+
+	roomChatID, ok := playlistPickerRooms[userID]
+	delete(playlistPickerRooms, userID)
+	if !ok {
+		roomChatID = chatID
+	}
+
+	r, err := getRoomForCallback(roomChatID)
+	if err != nil {
+		cb.Answer(F(chatID, "room_not_active_cb"), opt)
+		return tg.ErrEndGroup
+	}
+
+	track := r.Track()
+	if track == nil || track.ID == "" {
+		cb.Answer(F(chatID, "playlist_nothing_to_add"), opt)
+		_ = cb.Delete()
+		return tg.ErrEndGroup
+	}
+
+	data := strings.TrimPrefix(cb.DataString(), "plist:")
+
+	var playlistID string
+	if data == "create" {
+		playlists, err := database.GetUserPlaylists(userID)
+		if err != nil {
+			cb.Answer(F(chatID, "playlist_fetch_failed"), opt)
+			return tg.ErrEndGroup
+		}
+		if len(playlists) >= maxUserPlaylists {
+			cb.Answer(F(chatID, "playlist_limit_reached"), opt)
+			return tg.ErrEndGroup
+		}
+
+		playlistID, err = database.CreatePlaylist("My Playlist", userID)
+		if err != nil {
+			cb.Answer(F(chatID, "playlist_create_failed", locales.Arg{
+				"error": err.Error(),
+			}), opt)
+			return tg.ErrEndGroup
+		}
+	} else {
+		playlist, err := database.GetPlaylist(data)
+		if err != nil {
+			cb.Answer(F(chatID, "playlist_not_found"), opt)
+			_ = cb.Delete()
+			return tg.ErrEndGroup
+		}
+		if playlist.UserID != userID {
+			cb.Answer(F(chatID, "playlist_not_owner"), opt)
+			return tg.ErrEndGroup
+		}
+		playlistID = data
+	}
+
+	song := database.PlaylistSong{
+		URL:      track.URL,
+		Name:     track.Title,
+		TrackID:  track.ID,
+		Duration: track.Duration,
+		Platform: string(track.Source),
+	}
+
+	if err := database.AddSongToPlaylist(playlistID, song); err != nil {
+		cb.Answer(F(chatID, "playlist_add_failed", locales.Arg{
+			"error": err.Error(),
+		}), opt)
+		return tg.ErrEndGroup
+	}
+
+	playlist, err := database.GetPlaylist(playlistID)
+	if err == nil {
+		cb.Answer(F(chatID, "playlist_added_to", locales.Arg{
+			"name": html.EscapeString(song.Name),
+			"pl":   html.EscapeString(playlist.Name),
+		}), opt)
+	}
+
+	_ = cb.Delete()
 	return tg.ErrEndGroup
 }
 
