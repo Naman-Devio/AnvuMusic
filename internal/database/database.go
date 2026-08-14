@@ -24,6 +24,7 @@ var (
 	db               *mongo.Database
 	settingsColl     *mongo.Collection
 	chatSettingsColl *mongo.Collection
+	playlistsColl    *mongo.Collection
 
 	logger  = gologging.GetLogger("Database")
 	dbCache = utils.NewCache[string, any](60 * time.Minute)
@@ -44,6 +45,7 @@ func Init(mongoURL string) (func(), error) {
 	db = database
 	settingsColl = database.Collection("bot_settings")
 	chatSettingsColl = database.Collection("chat_settings")
+	playlistsColl = database.Collection("playlists")
 
 	migrateData()
 
