@@ -108,37 +108,63 @@ func GetPlayMarkup(chatID int64, r *RoomState, queued bool) tg.ReplyMarkup {
 		)
 	}
 
-	// Row 1: Playback controls — Resume, Pause, Skip, Stop
+	// Row 1: Playback controls — Resume, Pause, Replay, Skip, Stop
 	btn.AddRow(
 		tg.Button.Data("▷", prefix+"resume"),
 		tg.Button.Data("II", prefix+"pause"),
+		tg.Button.Data("⟳", prefix+"replay"),
 		tg.Button.Data("‣‣I", prefix+"skip"),
 		tg.Button.Data("▢", prefix+"stop"),
 	)
 
-	// Row 2: Seek back, Replay, Seek forward
+	// Row 2: Seek back, Settings (⚙️), Seek forward
 	btn.AddRow(
 		tg.Button.Data("↩ 15s", prefix+"seekback_15"),
-		tg.Button.Data("⟳", prefix+"replay"),
+		tg.Button.Data("⚙️", prefix+"settings"),
 		tg.Button.Data("15s ↪", prefix+"seek_15"),
 	)
 
-	// Row 3: Autoplay toggle, add-to-playlist (now playing only) + Close button
-	if !queued {
-		autoplayBtn := F(chatID, "AUTOPLAY_BTN_OFF")
-		if r.Autoplay() {
-			autoplayBtn = F(chatID, "AUTOPLAY_BTN_ON")
-		}
-		btn.AddRow(
-			tg.Button.Data(autoplayBtn, prefix+"autoplay"),
-			tg.Button.Data(F(chatID, "ADD_TO_PLAYLIST_BTN"), prefix+"playlist"),
-			tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
-		)
-	} else {
-		btn.AddRow(
-			tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
-		)
+	// Row 3: Close only
+	btn.AddRow(
+		tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
+	)
+
+	return btn.Build()
+}
+
+// GetPlaybackSettingsMarkup builds the ⚙️ settings view shown when the settings
+// button is tapped on the now-playing panel: a live countdown timer row, the
+// autoplay + playlist actions, and a Back button that returns to the normal
+// control panel. The view auto-closes when the countdown reaches zero.
+func GetPlaybackSettingsMarkup(chatID int64, r *RoomState) tg.ReplyMarkup {
+	btn := tg.NewKeyboard()
+	prefix := "room:"
+	if r.ChannelPlayID() != 0 {
+		prefix = "croom:"
 	}
+
+	rem := r.SettingsRemaining()
+	if rem < 1 {
+		rem = 1
+	}
+	btn.AddRow(
+		tg.Button.Data(F(chatID, "PLAYBACK_SETTINGS_TIMER", locales.Arg{
+			"seconds": rem,
+		}), "progress"),
+	)
+
+	autoplayBtn := F(chatID, "AUTOPLAY_BTN_OFF")
+	if r.Autoplay() {
+		autoplayBtn = F(chatID, "AUTOPLAY_BTN_ON")
+	}
+	btn.AddRow(
+		tg.Button.Data(autoplayBtn, prefix+"autoplay"),
+		tg.Button.Data(F(chatID, "ADD_TO_PLAYLIST_BTN"), prefix+"playlist"),
+	)
+
+	btn.AddRow(
+		tg.Button.Data(F(chatID, "PLAYBACK_BACK_BTN"), prefix+"back"),
+	)
 
 	return btn.Build()
 }
