@@ -61,6 +61,7 @@ func streamEndHandler(
 	var wasLooping bool
 	if len(r.Queue()) == 0 && r.Loop() == 0 {
 		if t = autoplayNextTrack(r); t == nil {
+			cleanupRoomMessages(r)
 			core.DeleteRoom(chatID)
 			core.Bot.SendMessage(cid, F(cid, "stream_queue_finished"))
 			return
@@ -99,6 +100,7 @@ func streamEndHandler(
 		utils.EOR(statusMsg, F(cid, "stream_download_fail", locales.Arg{
 			"error": err.Error(),
 		}))
+		cleanupRoomMessages(r)
 		core.DeleteRoom(chatID)
 
 		return
@@ -111,6 +113,7 @@ func streamEndHandler(
 			err,
 		)
 		utils.EOR(statusMsg, F(cid, "stream_play_fail"))
+		cleanupRoomMessages(r)
 		core.DeleteRoom(chatID)
 
 		return
@@ -182,4 +185,25 @@ func autoplayNextTrack(r *core.RoomState) *state.Track {
 	t := candidates[rand.Intn(len(candidates))]
 	t.Requester = "🎵 Autoplay"
 	return t
+}
+
+// cleanupRoomMessages deletes the now-playing panel (playcard) and any tracked
+// "Added to Queue" messages so the chat stays clean after playback ends. It must
+// be called before the room is destroyed.
+func cleanupRoomMessages(r *core.RoomState) {
+	if r == nil || r.IsDestroyed() {
+		return
+	}
+
+	if msg := r.StatusMsg(); msg != nil {
+		_, _ = msg.Delete()
+		r.SetStatusMsg(nil)
+	}
+
+	for _, qm := range r.QueueMsgs() {
+		if qm != nil {
+			_, _ = qm.Delete()
+		}
+	}
+	r.ClearQueueMsgs()
 }
