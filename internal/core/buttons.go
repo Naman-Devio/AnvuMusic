@@ -13,6 +13,7 @@ import (
 	tg "github.com/amarnathcjd/gogram/telegram"
 
 	"main/internal/config"
+	"main/internal/database"
 	"main/internal/locales"
 	"main/internal/utils"
 )
@@ -122,12 +123,77 @@ func GetPlayMarkup(chatID int64, r *RoomState, queued bool) tg.ReplyMarkup {
 		tg.Button.Data("15s ↪", prefix+"seek_15"),
 	)
 
-	// Row 3: Close button
-	btn.AddRow(
-		tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
-	)
+	// Row 3: Autoplay toggle, add-to-playlist (now playing only) + Close button
+	if !queued {
+		autoplayBtn := F(chatID, "AUTOPLAY_BTN_OFF")
+		if r.Autoplay() {
+			autoplayBtn = F(chatID, "AUTOPLAY_BTN_ON")
+		}
+		btn.AddRow(
+			tg.Button.Data(autoplayBtn, prefix+"autoplay"),
+			tg.Button.Data(F(chatID, "ADD_TO_PLAYLIST_BTN"), prefix+"playlist"),
+			tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
+		)
+	} else {
+		btn.AddRow(
+			tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
+		)
+	}
 
 	return btn.Build()
+}
+
+// GetPlaylistPickerMarkup builds the playlist chooser keyboard shown after
+// tapping the ➕ Playlist button on the now-playing panel.
+func GetPlaylistPickerMarkup(
+	chatID int64,
+	playlists []database.Playlist,
+) tg.ReplyMarkup {
+	kb := tg.NewKeyboard()
+
+	if len(playlists) == 0 {
+		kb.AddRow(tg.Button.Data(F(chatID, "PLAYLIST_CREATE_SAVE_BTN"), "plist:create"))
+	} else {
+		for _, pl := range playlists {
+			kb.AddRow(tg.Button.Data(pl.Name, "plist:"+pl.ID))
+		}
+	}
+
+	kb.AddRow(tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"))
+
+	return kb.Build()
+}
+
+// GetSettingsMarkup builds the per-chat settings panel keyboard.
+func GetSettingsMarkup(
+	chatID int64,
+	playMode bool,
+	adminMode string,
+	cmdDelete bool,
+) tg.ReplyMarkup {
+	kb := tg.NewKeyboard()
+
+	playBtn := F(chatID, "SETTINGS_PLAY_EVERYONE_BTN")
+	if playMode {
+		playBtn = F(chatID, "SETTINGS_PLAY_ADMINS_BTN")
+	}
+	kb.AddRow(tg.Button.Data(playBtn, "settings:play"))
+
+	adminBtn := F(chatID, "SETTINGS_ADMIN_ADMINS_BTN")
+	if adminMode == "everyone" {
+		adminBtn = F(chatID, "SETTINGS_ADMIN_EVERYONE_BTN")
+	}
+	kb.AddRow(tg.Button.Data(adminBtn, "settings:admin"))
+
+	deleteBtn := F(chatID, "SETTINGS_DELETE_OFF_BTN")
+	if cmdDelete {
+		deleteBtn = F(chatID, "SETTINGS_DELETE_ON_BTN")
+	}
+	kb.AddRow(tg.Button.Data(deleteBtn, "settings:delete"))
+
+	kb.AddRow(tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"))
+
+	return kb.Build()
 }
 
 func GetGroupHelpKeyboard(chatID int64) *tg.ReplyInlineMarkup {
@@ -175,12 +241,12 @@ func GetSupportMarkup(chatID int64) tg.ReplyMarkup {
 	// Row 2 (2×2 grid row 2): Owner, Source
 	if config.OwnerID != 0 {
 		kb.AddRow(
-			tg.Button.URL(F(chatID, "OWNER_BTN"), "https://t.me/eceqt"),
-			tg.Button.URL(F(chatID, "SOURCE_BTN"), "https://github.com/Naman-Devio/AnvuMusic/fork"),
+			tg.Button.URL(F(chatID, "OWNER_BTN"), "tg://user?id="+utils.IntToStr(config.OwnerID)),
+			tg.Button.URL(F(chatID, "SOURCE_BTN"), "https://t.me/lelobhaisource"),
 		)
 	} else {
 		kb.AddRow(
-			tg.Button.URL(F(chatID, "SOURCE_BTN"), "https://github.com/Naman-Devio/AnvuMusic/fork"),
+			tg.Button.URL(F(chatID, "SOURCE_BTN"), "https://t.me/lelobhaisource"),
 		)
 	}
 
