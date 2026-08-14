@@ -55,6 +55,7 @@ type RoomState struct {
 
 	// Metadata & UI
 	statusMsg *telegram.NewMessage
+	queueMsgs []*telegram.NewMessage
 	Data      map[string]any
 
 	// Internal Components
@@ -417,6 +418,37 @@ func (r *RoomState) SetStatusMsg(m *telegram.NewMessage) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.statusMsg = m
+}
+
+// AddQueueMsg tracks a "Added to Queue" reply message so it can be cleaned up
+// when the playback session ends.
+func (r *RoomState) AddQueueMsg(m *telegram.NewMessage) {
+	if r.IsDestroyed() || m == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.queueMsgs = append(r.queueMsgs, m)
+}
+
+func (r *RoomState) QueueMsgs() []*telegram.NewMessage {
+	if r.IsDestroyed() {
+		return nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]*telegram.NewMessage, len(r.queueMsgs))
+	copy(out, r.queueMsgs)
+	return out
+}
+
+func (r *RoomState) ClearQueueMsgs() {
+	if r.IsDestroyed() {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.queueMsgs = nil
 }
 
 // State checks
