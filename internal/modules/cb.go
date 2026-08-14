@@ -38,6 +38,8 @@ var actionHandlers = map[string]actionHandler{
 	"unmute":   handleUnmuteAction,
 	"autoplay": handleAutoplayAction,
 	"playlist": handleAddToPlaylistAction,
+	"settings": handleSettingsAction,
+	"back":     handleSettingsBackAction,
 }
 
 func cancelHandler(cb *tg.CallbackQuery) error {
@@ -481,6 +483,111 @@ func handleUnmuteAction(
 	return tg.ErrEndGroup
 }
 
+// renderPlaybackPanel re-renders the now-playing panel, keeping the ⚙️ settings
+// view open while its countdown is running and falling back to the normal
+// control panel otherwise. Used by callbacks, the countdown ticker and the
+// room monitor so the two views never fight each other.
+func renderPlaybackPanel(r *core.RoomState) {
+	if r == nil || r.IsDestroyed() {
+		return
+	}
+	msg := r.StatusMsg()
+	if msg == nil {
+		return
+	}
+
+	var markup tg.ReplyMarkup
+	if r.InSettingsView() {
+		markup = core.GetPlaybackSettingsMarkup(r.EffectiveChatID(), r)
+	} else {
+		markup = core.GetPlayMarkup(r.EffectiveChatID(), r, false)
+	}
+
+	if _, err := msg.Edit(msg.Text(), &tg.SendOptions{
+		ParseMode:   "HTML",
+		ReplyMarkup: markup,
+	}); err != nil {
+		gologging.ErrorF("Edit error: %v", err)
+	}
+}
+
+// refreshSettingsView resets the ⚙️ settings view window back to 5 seconds and
+// restarts its countdown. Used when an action is taken while the view is open
+// (autoplay toggle, playlist picker) so the user can keep using it.
+func refreshSettingsView(r *core.RoomState) {
+	if r == nil || !r.InSettingsView() {
+		return
+	}
+	until := time.Now().Add(core.SettingsViewWindow).Unix()
+	r.SetData("settings_until", until)
+	startSettingsCountdown(r, until)
+}
+
+// startSettingsCountdown ticks the ⚙️ settings view once per second, updating
+// the live countdown on the panel and auto-closing the view when it expires.
+// A newer ⚙️ tap (newer settings_until) makes older goroutines exit quietly.
+func startSettingsCountdown(r *core.RoomState, until int64) {
+	go func() {
+		for {
+			if r.IsDestroyed() {
+				return
+			}
+			ok, v := r.GetData("settings_until")
+			if !ok {
+				return
+			}
+			u, isInt := v.(int64)
+			if !isInt || u != until {
+				return // superseded by a newer ⚙️ tap
+			}
+			if time.Now().Unix() >= until {
+				r.DeleteData("settings_until")
+				renderPlaybackPanel(r)
+				return
+			}
+			renderPlaybackPanel(r)
+			time.Sleep(1 * time.Second)
+		}
+	}()
+}
+
+// handleSettingsAction opens the ⚙️ settings view on the now-playing panel,
+// replacing the control rows with a countdown + autoplay/playlist + back.
+func handleSettingsAction(
+	cb *tg.CallbackQuery,
+	r *core.RoomState,
+	chatID int64,
+) error {
+	opt := &tg.CallbackOptions{Alert: true}
+
+	until := time.Now().Add(core.SettingsViewWindow).Unix()
+	r.SetData("settings_until", until)
+
+	cb.Answer(F(cb.ChannelID(), "cb_settings_extras_shown"), opt)
+
+	renderPlaybackPanel(r)
+	startSettingsCountdown(r, until)
+
+	return tg.ErrEndGroup
+}
+
+// handleSettingsBackAction closes the ⚙️ settings view and returns the panel to
+// the normal control rows.
+func handleSettingsBackAction(
+	cb *tg.CallbackQuery,
+	r *core.RoomState,
+	chatID int64,
+) error {
+	opt := &tg.CallbackOptions{Alert: true}
+
+	r.DeleteData("settings_until")
+	cb.Answer(F(cb.ChannelID(), "cb_settings_back"), opt)
+
+	renderPlaybackPanel(r)
+
+	return tg.ErrEndGroup
+}
+
 func handleAutoplayAction(
 	cb *tg.CallbackQuery,
 	r *core.RoomState,
@@ -497,17 +604,11 @@ func handleAutoplayAction(
 		cb.Answer(F(cb.ChannelID(), "cb_autoplay_disabled"), opt)
 	}
 
-	// Refresh the panel so the button reflects the new state
-	msg, err := cb.GetMessage()
-	if err != nil {
-		return tg.ErrEndGroup
-	}
-	if _, err := cb.Edit(msg.Text(), &tg.SendOptions{
-		ParseMode:   "HTML",
-		ReplyMarkup: core.GetPlayMarkup(cb.ChannelID(), r, false),
-	}); err != nil {
-		gologging.ErrorF("Edit error: %v", err)
-	}
+	// Refresh the panel so the button reflects the new state. If the ⚙️ settings
+	// view is open, keep it open with a reset countdown so the user can toggle
+	// both actions.
+	refreshSettingsView(r)
+	renderPlaybackPanel(r)
 
 	return tg.ErrEndGroup
 }
@@ -540,6 +641,10 @@ func handleAddToPlaylistAction(
 	}
 
 	playlistPickerRooms[cb.SenderID] = chatID
+
+	// Keep the ⚙️ settings view open with a reset countdown while the user picks
+	// a playlist, so the panel is still in settings view when they come back.
+	refreshSettingsView(r)
 
 	title := html.EscapeString(utils.ShortTitle(track.Title, 40))
 	key := "playlist_picker_title"
