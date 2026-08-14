@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ● AnvuMusic
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
@@ -28,6 +28,9 @@ type ChatSettings struct {
 	RTMP               RTMPConfig `bson:"rtmp_config"`
 	AssistantIndex     int        `bson:"ass_index,omitempty"`
 	ThumbnailsDisabled bool       `bson:"no_thumb"`
+	PlayMode           bool       `bson:"play_mode"`
+	AdminMode          string     `bson:"admin_mode"`
+	CmdDelete          bool       `bson:"cmd_delete"`
 }
 
 func defaultChatSettings(chatID int64) *ChatSettings {
@@ -122,6 +125,73 @@ func SetThumbnailsDisabled(chatID int64, value bool) error {
 			return false
 		}
 		s.ThumbnailsDisabled = value
+		return true
+	})
+}
+
+// PlayMode returns whether playback is restricted to admins and authorized users.
+func PlayMode(chatID int64) (bool, error) {
+	settings, err := getChatSettings(chatID)
+	if err != nil {
+		return false, err
+	}
+	return settings.PlayMode, nil
+}
+
+// SetPlayMode updates the play mode setting for a chat.
+func SetPlayMode(chatID int64, value bool) error {
+	return modifyChatSettings(chatID, func(s *ChatSettings) bool {
+		if s.PlayMode == value {
+			return false
+		}
+		s.PlayMode = value
+		return true
+	})
+}
+
+// AdminMode returns the admin mode for a chat ("admins" or "everyone").
+// An empty value defaults to "admins" for backwards compatibility.
+func AdminMode(chatID int64) (string, error) {
+	settings, err := getChatSettings(chatID)
+	if err != nil {
+		return "", err
+	}
+	if settings.AdminMode == "" {
+		return "admins", nil
+	}
+	return settings.AdminMode, nil
+}
+
+// SetAdminMode updates the admin mode setting for a chat.
+func SetAdminMode(chatID int64, value string) error {
+	if value != "admins" && value != "everyone" {
+		value = "admins"
+	}
+	return modifyChatSettings(chatID, func(s *ChatSettings) bool {
+		if s.AdminMode == value {
+			return false
+		}
+		s.AdminMode = value
+		return true
+	})
+}
+
+// CmdDelete returns whether command messages are auto-deleted in the chat.
+func CmdDelete(chatID int64) (bool, error) {
+	settings, err := getChatSettings(chatID)
+	if err != nil {
+		return false, err
+	}
+	return settings.CmdDelete, nil
+}
+
+// SetCmdDelete updates the command auto-delete setting for a chat.
+func SetCmdDelete(chatID int64, value bool) error {
+	return modifyChatSettings(chatID, func(s *ChatSettings) bool {
+		if s.CmdDelete == value {
+			return false
+		}
+		s.CmdDelete = value
 		return true
 	})
 }
