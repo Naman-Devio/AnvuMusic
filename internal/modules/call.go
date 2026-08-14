@@ -195,14 +195,24 @@ func cleanupRoomMessages(r *core.RoomState) {
 		return
 	}
 
+	gologging.DebugF(
+		"[cleanup] Deleting playcard + %d queue message(s) for chat %d",
+		len(r.QueueMsgs()),
+		r.ChatID(),
+	)
+
 	if msg := r.StatusMsg(); msg != nil {
-		_, _ = msg.Delete()
+		if _, err := msg.Delete(); err != nil {
+			gologging.DebugF("[cleanup] Playcard delete failed: %v", err)
+		}
 		r.SetStatusMsg(nil)
 	}
 
 	for _, qm := range r.QueueMsgs() {
 		if qm != nil {
-			_, _ = qm.Delete()
+			if _, err := qm.Delete(); err != nil {
+				gologging.DebugF("[cleanup] Queue message delete failed: %v", err)
+			}
 		}
 	}
 	r.ClearQueueMsgs()
