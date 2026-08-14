@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
  * Copyright (C) 2026 Team Echo
@@ -67,6 +67,8 @@ func handleStop(m *telegram.NewMessage, cplay bool) error {
 		})
 		return telegram.ErrEndGroup
 	}
+
+	cleanupRoomMessages(r)
 
 	core.DeleteRoom(r.ChatID())
 	m.Reply(
