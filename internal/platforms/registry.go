@@ -314,58 +314,35 @@ func downloadYouTubeTrack(
 		return f, nil
 	}
 
-	candidates := []state.Platform{}
-	for _, p := range GetOrderedPlatforms() {
-		if p.Name() == PlatformShrutiApi || p.Name() == PlatformYtDlp {
-			if p.CanDownload(track.Source) {
-				candidates = append(candidates, p)
-			}
-		}
-	}
-
-	if len(candidates) == 0 {
-		return "", errors.New("no YouTube downloaders available")
-	}
-
-	type result struct {
-		path   string
-		err    error
-		name   string
-	}
-
-	resultCh := make(chan result, len(candidates))
-	raceCtx, cancel := context.WithCancel(ctx)
-	defer cancel()
-
-	for _, p := range candidates {
-		platform := p
-		go func() {
-			path, err := platform.Download(raceCtx, track, statusMsg)
-			if err != nil {
-				if errors.Is(err, context.Canceled) {
-					resultCh <- result{err: err, name: string(platform.Name())}
-					return
-				}
-				gologging.WarnF("Download failed via %s: %v", platform.Name(), err)
-				resultCh <- result{err: err, name: string(platform.Name())}
-				return
-			}
-			resultCh <- result{path: path, name: string(platform.Name())}
-		}()
-	}
-
+	// Download sequentially (never in parallel): all candidates write to the
+	// same downloads/audio_<id>.* path, so running them concurrently corrupts
+	// the file (one downloader clobbers the other's output mid-write, and a
+	// loser's failure cleanup can delete the winner's freshly written file).
 	var errs []string
-	for i := 0; i < len(candidates); i++ {
-		res := <-resultCh
-		if res.err == nil {
-			cancel()
-			gologging.Info("Download successful via " + res.name + " -> " + res.path)
-			return res.path, nil
+
+	for _, p := range GetOrderedPlatforms() {
+		if p.Name() != PlatformShrutiApi && p.Name() != PlatformYtDlp {
+			continue
 		}
-		if errors.Is(res.err, context.Canceled) {
-			return "", res.err
+		if !p.CanDownload(track.Source) {
+			continue
 		}
-		errs = append(errs, res.name+": "+res.err.Error())
+
+		gologging.Debug("Attempting YouTube download with platform: " + string(p.Name()))
+		path, err := p.Download(ctx, track, statusMsg)
+		if err == nil {
+			gologging.Info("Download successful via " + string(p.Name()) + " -> " + path)
+			return path, nil
+		}
+
+		if errors.Is(err, context.Canceled) {
+			gologging.Debug("Download canceled by context (user/system request)")
+			return "", err
+		}
+
+		errMsg := string(p.Name()) + ": " + err.Error()
+		gologging.Error("Download failed with " + errMsg)
+		errs = append(errs, errMsg)
 	}
 
 	if len(errs) > 0 {
