@@ -2,7 +2,8 @@
  * ● AnvuMusic
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
- * Copyright (C) 2026 Team Echo
+ * Copyright (C) 2026 Team Echo 
+ * note the api keys i pasted in this file almost all are dead replace with your own to be worked again <3 ~
  */
 
 package platforms
