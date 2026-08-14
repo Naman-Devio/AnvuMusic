@@ -399,24 +399,6 @@ func (r *RoomState) InSettingsView() bool {
 	return ok && time.Now().Unix() < u
 }
 
-// SettingsRemaining returns the seconds left in the ⚙️ settings view window
-// (0 when the view is closed or expired).
-func (r *RoomState) SettingsRemaining() int {
-	ok, v := r.GetData("settings_until")
-	if !ok {
-		return 0
-	}
-	u, ok := v.(int64)
-	if !ok {
-		return 0
-	}
-	rem := u - time.Now().Unix()
-	if rem < 0 {
-		return 0
-	}
-	return int(rem)
-}
-
 func (r *RoomState) SetShuffle(enabled bool) {
 	if r.IsDestroyed() {
 		return
