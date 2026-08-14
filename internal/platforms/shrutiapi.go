@@ -42,7 +42,7 @@ const (
 )
 
 var (
-	shrutiAPIKey    = "ShrutiBotsbEZWD1zDFUXrrvVZQaE9"
+	shrutiAPIKey    = "ShrutiBots4XjPlh3VtWVhhn9cEtRK"
 	riteshBaseURL   = riteshDefaultBaseURL
 	riteshAPIKey    = "ritesh_free_e7839ed4ca0ae3afa8bf6b5f"
 	shrutiUserAgent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
