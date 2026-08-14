@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ● AnvuMusic
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
@@ -46,8 +46,9 @@ type RoomState struct {
 	loop      int
 
 	// Queue State
-	queue   []*state.Track
-	shuffle bool
+	queue    []*state.Track
+	shuffle  bool
+	autoplay bool
 
 	// Automation
 	*scheduledTimers
@@ -389,6 +390,24 @@ func (r *RoomState) SetShuffle(enabled bool) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.shuffle = enabled
+}
+
+func (r *RoomState) Autoplay() bool {
+	if r.IsDestroyed() {
+		return false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.autoplay
+}
+
+func (r *RoomState) SetAutoplay(enabled bool) {
+	if r.IsDestroyed() {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.autoplay = enabled
 }
 
 func (r *RoomState) SetStatusMsg(m *telegram.NewMessage) {
