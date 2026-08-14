@@ -512,7 +512,7 @@ func renderPlaybackPanel(r *core.RoomState) {
 }
 
 // refreshSettingsView resets the ⚙️ settings view window back to 5 seconds and
-// restarts its countdown. Used when an action is taken while the view is open
+// schedules its auto-close. Used when an action is taken while the view is open
 // (autoplay toggle, playlist picker) so the user can keep using it.
 func refreshSettingsView(r *core.RoomState) {
 	if r == nil || !r.InSettingsView() {
@@ -520,39 +520,33 @@ func refreshSettingsView(r *core.RoomState) {
 	}
 	until := time.Now().Add(core.SettingsViewWindow).Unix()
 	r.SetData("settings_until", until)
-	startSettingsCountdown(r, until)
+	scheduleSettingsClose(r, until)
 }
 
-// startSettingsCountdown ticks the ⚙️ settings view once per second, updating
-// the live countdown on the panel and auto-closing the view when it expires.
-// A newer ⚙️ tap (newer settings_until) makes older goroutines exit quietly.
-func startSettingsCountdown(r *core.RoomState, until int64) {
-	go func() {
-		for {
-			if r.IsDestroyed() {
-				return
-			}
-			ok, v := r.GetData("settings_until")
-			if !ok {
-				return
-			}
-			u, isInt := v.(int64)
-			if !isInt || u != until {
-				return // superseded by a newer ⚙️ tap
-			}
-			if time.Now().Unix() >= until {
-				r.DeleteData("settings_until")
-				renderPlaybackPanel(r)
-				return
-			}
-			renderPlaybackPanel(r)
-			time.Sleep(1 * time.Second)
+// scheduleSettingsClose restores the normal control panel with a single delayed
+// edit once the ⚙️ settings view window expires. No per-second edits, so no
+// flood risk. A newer ⚙️ tap (newer settings_until) makes older timers exit
+// quietly.
+func scheduleSettingsClose(r *core.RoomState, until int64) {
+	time.AfterFunc(core.SettingsViewWindow, func() {
+		if r.IsDestroyed() {
+			return
 		}
-	}()
+		ok, v := r.GetData("settings_until")
+		if !ok {
+			return
+		}
+		u, isInt := v.(int64)
+		if !isInt || u != until {
+			return // superseded by a newer ⚙️ tap
+		}
+		r.DeleteData("settings_until")
+		renderPlaybackPanel(r)
+	})
 }
 
 // handleSettingsAction opens the ⚙️ settings view on the now-playing panel,
-// replacing the control rows with a countdown + autoplay/playlist + back.
+// replacing the control rows with autoplay/playlist + back.
 func handleSettingsAction(
 	cb *tg.CallbackQuery,
 	r *core.RoomState,
@@ -566,7 +560,7 @@ func handleSettingsAction(
 	cb.Answer(F(cb.ChannelID(), "cb_settings_extras_shown"), opt)
 
 	renderPlaybackPanel(r)
-	startSettingsCountdown(r, until)
+	scheduleSettingsClose(r, until)
 
 	return tg.ErrEndGroup
 }
