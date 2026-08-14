@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
  * Copyright (C) 2026 Team Echo
@@ -27,6 +27,12 @@ var AllCommands = BotCommands{
 		{Command: "start", Description: "Start the bot."},
 		{Command: "help", Description: "Show help menu."},
 		{Command: "ping", Description: "Check if the bot is alive."},
+		{Command: "createplaylist", Description: "Create a personal playlist."},
+		{Command: "myplaylists", Description: "List your playlists."},
+		{Command: "playlistinfo", Description: "View a playlist's contents."},
+		{Command: "addtoplaylist", Description: "Add a track to a playlist."},
+		{Command: "removefromplaylist", Description: "Remove a track from a playlist."},
+		{Command: "deleteplaylist", Description: "Delete one of your playlists."},
 	},
 	PrivateSudoCommands: []*telegram.BotCommand{
 		{Command: "ac", Description: "Show active voice chats."},
@@ -95,6 +101,14 @@ var AllCommands = BotCommands{
 		{Command: "move", Description: "Move a song in the queue."},
 		{Command: "shuffle", Description: "Shuffle the queue."},
 		{Command: "loop", Description: "Loop the current song."},
+		{
+			Command:     "autoplay",
+			Description: "Toggle autoplay (recommended tracks when queue ends).",
+		},
+		{
+			Command:     "settings",
+			Description: "Manage chat settings (play mode, admin mode, cmd delete).",
+		},
 		{Command: "end", Description: "Stop the song."},
 		{Command: "addauth", Description: "Add a user to the authorized list."},
 		{
