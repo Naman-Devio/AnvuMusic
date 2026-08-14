@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
  * Copyright (C) 2026 Team Echo
@@ -9,6 +9,8 @@ package modules
 import (
 	"context"
 	"html"
+	"math/rand"
+	"time"
 
 	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
@@ -58,9 +60,11 @@ func streamEndHandler(
 	var t *state.Track
 	var wasLooping bool
 	if len(r.Queue()) == 0 && r.Loop() == 0 {
-		core.DeleteRoom(chatID)
-		core.Bot.SendMessage(cid, F(cid, "stream_queue_finished"))
-		return
+		if t = autoplayNextTrack(r); t == nil {
+			core.DeleteRoom(chatID)
+			core.Bot.SendMessage(cid, F(cid, "stream_queue_finished"))
+			return
+		}
 	} else {
 		wasLooping = r.Loop() > 0
 		t = r.NextTrack()
@@ -134,4 +138,48 @@ func streamEndHandler(
 
 	statusMsg, _ = utils.EOR(statusMsg, msgText, opt)
 	r.SetStatusMsg(statusMsg)
+}
+
+// autoplayNextTrack picks a random recommended track (YouTube Mix) based on the
+// last played track when autoplay is enabled. It returns nil when autoplay is
+// disabled, the last track is not a YouTube track, or no suitable candidate
+// could be resolved within the duration limit.
+func autoplayNextTrack(r *core.RoomState) *state.Track {
+	if !r.Autoplay() {
+		return nil
+	}
+
+	last := r.Track()
+	if last == nil || last.Source != platforms.PlatformYouTube || last.ID == "" {
+		return nil
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	tracks, err := platforms.GetYouTubeMix(ctx, last.ID, 10)
+	if err != nil {
+		gologging.WarnF("[autoplay] Failed to fetch mix for %s: %v", last.ID, err)
+		return nil
+	}
+
+	var candidates []*state.Track
+	for _, t := range tracks {
+		if t == nil || t.ID == "" || t.ID == last.ID {
+			continue
+		}
+		if config.DurationLimit > 0 && t.Duration > config.DurationLimit {
+			continue
+		}
+		candidates = append(candidates, t)
+	}
+
+	if len(candidates) == 0 {
+		gologging.Warn("[autoplay] No suitable tracks found in mix")
+		return nil
+	}
+
+	t := candidates[rand.Intn(len(candidates))]
+	t.Requester = "🎵 Autoplay"
+	return t
 }
