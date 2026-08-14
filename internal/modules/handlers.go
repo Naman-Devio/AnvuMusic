@@ -64,6 +64,11 @@ var handlers = []MsgHandlerDef{
 		Handler: broadcastHandler,
 		Filters: []telegram.Filter{ownerFilter, ignoreChannelFilter},
 	},
+	{
+		Pattern: "(stop_gcast|stop_broadcast|cancel_gcast|stopbcast)",
+		Handler: stopBroadcastHandler,
+		Filters: []telegram.Filter{ownerFilter, ignoreChannelFilter},
+	},
 
 	{
 		Pattern: "(ac|active|activevc|activevoice)",
@@ -144,7 +149,7 @@ var handlers = []MsgHandlerDef{
 	{
 		Pattern: "play",
 		Handler: playHandler,
-		Filters: []telegram.Filter{superGroupFilter},
+		Filters: []telegram.Filter{playModeFilter},
 	},
 	{
 		Pattern: "(fplay|playforce)",
@@ -154,7 +159,7 @@ var handlers = []MsgHandlerDef{
 	{
 		Pattern: "cplay",
 		Handler: cplayHandler,
-		Filters: []telegram.Filter{superGroupFilter},
+		Filters: []telegram.Filter{playModeFilter},
 	},
 	{
 		Pattern: "(cfplay|fcplay|cplayforce)",
@@ -164,7 +169,7 @@ var handlers = []MsgHandlerDef{
 	{
 		Pattern: "vplay",
 		Handler: vplayHandler,
-		Filters: []telegram.Filter{superGroupFilter},
+		Filters: []telegram.Filter{playModeFilter},
 	},
 	{
 		Pattern: "(fvplay|vfplay|vplayforce)",
@@ -174,7 +179,7 @@ var handlers = []MsgHandlerDef{
 	{
 		Pattern: "(vcplay|cvplay)",
 		Handler: vcplayHandler,
-		Filters: []telegram.Filter{superGroupFilter},
+		Filters: []telegram.Filter{playModeFilter},
 	},
 	{
 		Pattern: "(fvcplay|fvcpay|vcplayforce)",
@@ -265,6 +270,11 @@ var handlers = []MsgHandlerDef{
 	{
 		Pattern: "(loop|setloop)",
 		Handler: loopHandler,
+		Filters: []telegram.Filter{superGroupFilter, authFilter},
+	},
+	{
+		Pattern: "autoplay",
+		Handler: autoplayHandler,
 		Filters: []telegram.Filter{superGroupFilter, authFilter},
 	},
 	{
@@ -493,6 +503,47 @@ var handlers = []MsgHandlerDef{
 		Handler: gbansListHandler,
 		Filters: []telegram.Filter{sudoOnlyFilter, ignoreChannelFilter},
 	},
+
+	// ─── Playlist Handlers ────────────────────────────────
+
+	{
+		Pattern: "(cplist|createplaylist)",
+		Handler: createPlaylistHandler,
+		Filters: []telegram.Filter{ignoreChannelFilter},
+	},
+	{
+		Pattern: "(dplist|deleteplaylist)",
+		Handler: deletePlaylistHandler,
+		Filters: []telegram.Filter{ignoreChannelFilter},
+	},
+	{
+		Pattern: "(addtoplaylist|addtoplist)",
+		Handler: addToPlaylistHandler,
+		Filters: []telegram.Filter{ignoreChannelFilter},
+	},
+	{
+		Pattern: "(removefromplaylist|rmplist)",
+		Handler: removeFromPlaylistHandler,
+		Filters: []telegram.Filter{ignoreChannelFilter},
+	},
+	{
+		Pattern: "(playlistinfo|plistinfo)",
+		Handler: playlistInfoHandler,
+		Filters: []telegram.Filter{ignoreChannelFilter},
+	},
+	{
+		Pattern: "(myplaylists|myplists|mplists)",
+		Handler: myPlaylistsHandler,
+		Filters: []telegram.Filter{ignoreChannelFilter},
+	},
+
+	// ─── Settings Handlers ──────────────────────────────
+
+	{
+		Pattern: "settings",
+		Handler: settingsHandler,
+		Filters: []telegram.Filter{superGroupFilter, adminFilter},
+	},
 }
 
 var cbHandlers = []CbHandlerDef{
@@ -507,7 +558,9 @@ var cbHandlers = []CbHandlerDef{
 	{Pattern: "^cancel$", Handler: cancelHandler},
 	{Pattern: "^bcast_cancel$", Handler: broadcastCancelCB},
 
-	{Pattern: `^room:(\w+)$`, Handler: roomHandle},
+	{Pattern: `^c?room:(\w+)$`, Handler: roomHandle},
+	{Pattern: `^settings:(\w+)$`, Handler: settingsCallback},
+	{Pattern: `^plist:(.+)$`, Handler: playlistPickCallback},
 	{Pattern: "progress", Handler: emptyCBHandler},
 }
 
