@@ -133,25 +133,15 @@ func GetPlayMarkup(chatID int64, r *RoomState, queued bool) tg.ReplyMarkup {
 }
 
 // GetPlaybackSettingsMarkup builds the ⚙️ settings view shown when the settings
-// button is tapped on the now-playing panel: a live countdown timer row, the
-// autoplay + playlist actions, and a Back button that returns to the normal
-// control panel. The view auto-closes when the countdown reaches zero.
+// button is tapped on the now-playing panel: the autoplay + playlist actions
+// and a Back button that returns to the normal control panel. The view
+// auto-closes (single edit) after SettingsViewWindow seconds.
 func GetPlaybackSettingsMarkup(chatID int64, r *RoomState) tg.ReplyMarkup {
 	btn := tg.NewKeyboard()
 	prefix := "room:"
 	if r.ChannelPlayID() != 0 {
 		prefix = "croom:"
 	}
-
-	rem := r.SettingsRemaining()
-	if rem < 1 {
-		rem = 1
-	}
-	btn.AddRow(
-		tg.Button.Data(F(chatID, "PLAYBACK_SETTINGS_TIMER", locales.Arg{
-			"seconds": rem,
-		}), "progress"),
-	)
 
 	autoplayBtn := F(chatID, "AUTOPLAY_BTN_OFF")
 	if r.Autoplay() {
