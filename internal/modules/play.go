@@ -827,7 +827,8 @@ func playTracksAndRespond(
 				"by":       mention,
 			})
 
-			utils.EOR(replyMsg, addedText, opt)
+			replyMsg, _ = utils.EOR(replyMsg, addedText, opt)
+			r.AddQueueMsg(replyMsg)
 		} else {
 			var b strings.Builder
 			b.WriteString(F(chatID, "play_added_multiple_header", locales.Arg{
@@ -842,7 +843,8 @@ func playTracksAndRespond(
 			}
 
 			b.WriteString(F(chatID, "play_queue_view_hint"))
-			utils.EOR(replyMsg, b.String())
+			replyMsg, _ = utils.EOR(replyMsg, b.String())
+			r.AddQueueMsg(replyMsg)
 		}
 	}
 
