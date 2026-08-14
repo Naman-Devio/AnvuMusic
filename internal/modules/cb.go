@@ -579,7 +579,7 @@ func playlistPickCallback(cb *tg.CallbackQuery) error {
 	track := r.Track()
 	if track == nil || track.ID == "" {
 		cb.Answer(F(chatID, "playlist_nothing_to_add"), opt)
-		_ = cb.Delete()
+		_, _ = cb.Delete()
 		return tg.ErrEndGroup
 	}
 
@@ -608,7 +608,7 @@ func playlistPickCallback(cb *tg.CallbackQuery) error {
 		playlist, err := database.GetPlaylist(data)
 		if err != nil {
 			cb.Answer(F(chatID, "playlist_not_found"), opt)
-			_ = cb.Delete()
+			_, _ = cb.Delete()
 			return tg.ErrEndGroup
 		}
 		if playlist.UserID != userID {
@@ -641,7 +641,7 @@ func playlistPickCallback(cb *tg.CallbackQuery) error {
 		}), opt)
 	}
 
-	_ = cb.Delete()
+	_, _ = cb.Delete()
 	return tg.ErrEndGroup
 }
 
