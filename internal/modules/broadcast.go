@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
  * Copyright (C) 2026 Team Echo
@@ -87,6 +87,7 @@ type BroadcastStats struct {
 }
 
 type BroadcastFlags struct {
+	Mode    string // "both" (default), "chat", "user"
 	NoChat  bool
 	NoUser  bool
 	Copy    bool
@@ -102,25 +103,26 @@ func init() {
 <u>Usage:</u>
 <b>/broadcast [flags] [text] </b> — Broadcast text message.
 <b>/broadcast [flags] [reply to message]</b> — Broadcast the replied message.
-<b>/broadcast -cancel</b> — Cancel ongoing broadcast.
+<b>/broadcast -cancel</b> — Cancel ongoing broadcast.	<blockquote>
+	<b>📋 Flags:</b>
+	• <code>-chat</code> — Broadcast to groups only
+	• <code>-user</code> — Broadcast to users only
+	• <code>-both</code> — Broadcast to both groups and users (default)
+	• <code>--nochat</code> — Exclude groups from broadcast (legacy alias of <code>-user</code>)
+	• <code>--nouser</code> — Exclude users from broadcast (legacy alias of <code>-chat</code>)
+	• <code>--copy</code> — Remove forwarded tag, when broadcasting a replied message (copy mode)
+	• <code>--limit [n]</code> — Limit total messages sent (default: 0 = no limit)
+	• <code>--delay [seconds]</code> — Delay between messages (default: 1.5s)
+	• <code>--pin</code> — Pin the message (silent)
+	• <code>--pinloud</code> — Pin the message (with notification)
 
-<blockquote>
-<b>📋 Flags:</b>
-• <code>--nochat</code> — Exclude groups from broadcast
-• <code>--nouser</code> — Exclude users from broadcast
-• <code>--copy</code> — Remove forwarded tag, when broadcasting a replied message (copy mode)
-• <code>--limit [n]</code> — Limit total messages sent (default: 0 = no limit)
-• <code>--delay [seconds]</code> — Delay between messages (default: 1.5s)
-• <code>--pin</code> — Pin the message (silent)
-• <code>--pinloud</code> — Pin the message (with notification)
-
-• <code>-cancel</code> - Cancel a ongoing broadcast.
+	• <code>-cancel</code> / <code>/stop_gcast</code> — Cancel an ongoing broadcast.
 </blockquote>
 <blockquote>
-<b>📌 Examples:</b>
-/broadcast -nochat -delay 2 Important announcement
-/broadcast -copy -nochat -pin [reply to message]
-/broadcast -limit 10 -delay 3 Limited broadcast
+	<b>📌 Examples:</b>
+	/broadcast -chat -delay 2 Important announcement
+	/broadcast -copy -chat -pin [reply to message]
+	/broadcast -user -limit 10 -delay 3 Limited user broadcast
 </blockquote>
 <b>⚠️ Notes:</b>
 • Only the <b>owner</b> can use this command
@@ -254,6 +256,7 @@ func broadcastHandler(m *tg.NewMessage) error {
 
 func parseBroadcastCommand(m *tg.NewMessage) (*BroadcastFlags, string, error) {
 	flags := &BroadcastFlags{
+		Mode:  "both",
 		Delay: defaultDelay,
 	}
 
@@ -276,6 +279,18 @@ func parseBroadcastCommand(m *tg.NewMessage) (*BroadcastFlags, string, error) {
 			flags.NoChat = true
 		case word == "-nouser" || word == "--nouser":
 			flags.NoUser = true
+		case word == "-chat" || word == "--chat":
+			flags.Mode = "chat"
+			flags.NoUser = true
+			flags.NoChat = false
+		case word == "-user" || word == "--user":
+			flags.Mode = "user"
+			flags.NoChat = true
+			flags.NoUser = false
+		case word == "-both" || word == "--both":
+			flags.Mode = "both"
+			flags.NoChat = false
+			flags.NoUser = false
 		case word == "-copy" || word == "--copy":
 			flags.Copy = true
 		case word == "-pin" || word == "--pin":
@@ -653,6 +668,12 @@ func handleBroadcastCancel(m *tg.NewMessage) error {
 
 	m.Reply(F(m.ChannelID(), "broadcast_cancel_success"))
 	return tg.ErrEndGroup
+}
+
+// stopBroadcastHandler stops an ongoing broadcast via /stop_gcast or
+// /stop_broadcast (owner only).
+func stopBroadcastHandler(m *tg.NewMessage) error {
+	return handleBroadcastCancel(m)
 }
 
 func broadcastCancelCB(cb *tg.CallbackQuery) error {
