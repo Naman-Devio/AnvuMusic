@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
  * Copyright (C) 2026 Team Echo
@@ -293,12 +293,22 @@ func handlePlay(m *tg.NewMessage, opts *playOpts) error {
 	)
 
 	if query != "" && !m.IsReply() && !isDirectURLRequest(m) {
-		tracks, shouldSelect, err = resolveSearchSelection(m, replyMsg, opts)
-		if err != nil {
-			return tg.ErrEndGroup
-		}
-		if shouldSelect {
-			return tg.ErrEndGroup
+		if strings.HasPrefix(query, "tgpl_") {
+			tracks, err = loadPlaylistTracks(query, opts.Video)
+			if err != nil {
+				utils.EOR(replyMsg, F(m.ChannelID(), "playlist_play_failed", locales.Arg{
+					"error": err.Error(),
+				}))
+				return tg.ErrEndGroup
+			}
+		} else {
+			tracks, shouldSelect, err = resolveSearchSelection(m, replyMsg, opts)
+			if err != nil {
+				return tg.ErrEndGroup
+			}
+			if shouldSelect {
+				return tg.ErrEndGroup
+			}
 		}
 		isActive, err = ensureVoiceReady(r, replyMsg)
 		if err != nil {
