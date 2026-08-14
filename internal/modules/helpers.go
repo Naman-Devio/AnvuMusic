@@ -341,7 +341,7 @@ func maybeDeleteCommand(m *tg.NewMessage) {
 		return
 	}
 
-	if err := m.Delete(); err != nil {
+	if _, err := m.Delete(); err != nil {
 		gologging.DebugF("Failed to delete command message: %v", err)
 	}
 }
