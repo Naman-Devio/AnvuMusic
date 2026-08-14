@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ● AnvuMusic
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
@@ -58,6 +58,16 @@ var yt = &YouTubePlatform{
 
 func init() {
 	Register(90, yt)
+}
+
+// GetYouTubeMix fetches recommended tracks (YouTube Mix / radio) for a video ID.
+// It is used by autoplay to keep the queue flowing when it runs empty.
+func GetYouTubeMix(
+	ctx context.Context,
+	videoID string,
+	limit int,
+) ([]*state.Track, error) {
+	return yt.GetMixPlaylist(ctx, videoID, limit)
 }
 
 func (p *YouTubePlatform) Name() state.PlatformName {
@@ -122,7 +132,7 @@ func (p *YouTubePlatform) handlePlaylist(
 	)
 
 	if strings.HasPrefix(playlistID, "RD") {
-		tracks, err = p.fetchMixPlaylist(playlistID, config.QueueLimit)
+		tracks, err = p.fetchMixPlaylist(context.Background(), playlistID, config.QueueLimit)
 	} else {
 		tracks, err = p.fetchPlaylist(playlistID, config.QueueLimit)
 	}
@@ -272,7 +282,7 @@ func (p *YouTubePlatform) performSearch(query string, limit int) ([]*state.Track
 		"params": "CAASAhAB",
 	}
 
-	err := p.callInnerTube("search", payload, &result)
+	err := p.callInnerTube(context.Background(), "search", payload, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -309,7 +319,7 @@ func (p *YouTubePlatform) fetchVideo(videoID string) (*state.Track, error) {
 		"videoId": videoID,
 	}
 
-	err := p.callInnerTube("player", payload, &result)
+	err := p.callInnerTube(context.Background(), "player", payload, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -353,7 +363,7 @@ func (p *YouTubePlatform) fetchPlaylist(playlistID string, limit int) ([]*state.
 		"browseId": browseID,
 	}
 
-	err := p.callInnerTube("browse", payload, &result)
+	err := p.callInnerTube(context.Background(), "browse", payload, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -363,7 +373,24 @@ func (p *YouTubePlatform) fetchPlaylist(playlistID string, limit int) ([]*state.
 	return tracks, nil
 }
 
-func (p *YouTubePlatform) fetchMixPlaylist(playlistID string, limit int) ([]*state.Track, error) {
+// GetMixPlaylist fetches recommended tracks (YouTube Mix / radio) for a video ID.
+// The mix playlist ID is derived as "RD" + videoID, matching YouTube's radio format.
+func (p *YouTubePlatform) GetMixPlaylist(
+	ctx context.Context,
+	videoID string,
+	limit int,
+) ([]*state.Track, error) {
+	if strings.TrimSpace(videoID) == "" {
+		return nil, errors.New("empty video id")
+	}
+	return p.fetchMixPlaylist(ctx, "RD"+videoID, limit)
+}
+
+func (p *YouTubePlatform) fetchMixPlaylist(
+	ctx context.Context,
+	playlistID string,
+	limit int,
+) ([]*state.Track, error) {
 	gologging.DebugF("[YouTube] Fetching mix: %s", playlistID)
 	var result map[string]any
 
@@ -377,7 +404,7 @@ func (p *YouTubePlatform) fetchMixPlaylist(playlistID string, limit int) ([]*sta
 		"playlistId": playlistID,
 	}
 
-	err := p.callInnerTube("next", payload, &result)
+	err := p.callInnerTube(ctx, "next", payload, &result)
 	if err != nil {
 		return nil, err
 	}
@@ -430,9 +457,15 @@ func (p *YouTubePlatform) fetchMixPlaylist(playlistID string, limit int) ([]*sta
 	return tracks, nil
 }
 
-func (p *YouTubePlatform) callInnerTube(endpoint string, body any, result any) error {
+func (p *YouTubePlatform) callInnerTube(
+	ctx context.Context,
+	endpoint string,
+	body any,
+	result any,
+) error {
 	apiURL := fmt.Sprintf("https://m.youtube.com/youtubei/v1/%s?key=%s", endpoint, innerTubeKey)
 	resp, err := rc.R().
+		SetContext(ctx).
 		SetBody(body).
 		SetResult(result).
 		SetHeader("Content-Type", "application/json").
