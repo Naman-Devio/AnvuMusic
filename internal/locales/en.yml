@@ -4,9 +4,20 @@ name: "🇺🇸 English"
 CONFIRM_RESUME_BTN: "▶ Resume"
 CONFIRM_UNMUTE_BTN: "🔊 Unmute"
 CONFIRM_STOP_BTN: "■ Stop"
-ADD_ME_BTN: "˹ᴛᴧᴘ тᴏ sᴇᴇ ᴍᴧɢɪᴄ˼"
+ADD_ME_BTN: "➕ Add to group"
 BROADCAST_CANCEL_BTN: "✕ Cancel broadcast"
-CLOSE_BTN: "✧ ᴄʟᴏsᴇ ✧"
+CLOSE_BTN: "✕ Close panel"
+AUTOPLAY_BTN_ON: "🔁 Autoplay: ON"
+AUTOPLAY_BTN_OFF: "🔁 Autoplay: OFF"
+ADD_TO_PLAYLIST_BTN: "➕ Playlist"
+SETTINGS_PLAY_EVERYONE_BTN: "🎵 Play mode: Everyone"
+SETTINGS_PLAY_ADMINS_BTN: "🎵 Play mode: Admins only"
+SETTINGS_ADMIN_ADMINS_BTN: "🛡 Admin mode: Admins only"
+SETTINGS_ADMIN_EVERYONE_BTN: "🛡 Admin mode: Everyone"
+SETTINGS_DELETE_ON_BTN: "🗑 Cmd delete: ON"
+SETTINGS_DELETE_OFF_BTN: "🗑 Cmd delete: OFF"
+SETTINGS_ADMIN_STATE_ADMINS: "Admins only"
+SETTINGS_ADMIN_STATE_EVERYONE: "Everyone"
 DOWNLOAD_CANCEL_BTN: "✕ Cancel download"
 GC_HELP_BTN: "📚 DM · full guide"
 GC_UPDATES_BTN: "📢 Updates"
@@ -27,7 +38,7 @@ HELP_OWNER_BTN: "👑 Owner"
 HELP_SUDOERS_BTN: "⚡ Sudo"
 
 HELP_HOME_PANEL_BTN: "⌂ Home"
-HELP_BACK_CATEGORIES_BTN: "✧ вα¢к ✧"
+HELP_BACK_CATEGORIES_BTN: "◀ Index"
 
 # inline player (two rows: transport strip + replay/stop)
 PLAY_BTN_RESUME: "▶"
@@ -122,6 +133,10 @@ invalid_request: "⚠️ Invalid request."
 unknown_action: "⚠️ Unknown action."
 download_cancelled: "✅ Download cancelled."
 no_download_to_cancel: "ℹ️ No download to cancel."
+
+# Autoplay callback
+cb_autoplay_enabled: "🔁 Autoplay enabled — related tracks will play when the queue ends."
+cb_autoplay_disabled: "🔁 Autoplay disabled."
 
 # Pause callback
 cb_pause_success: "⏸️ Track paused at {position}"
@@ -837,6 +852,63 @@ stopped: "⏹️ <b>Playback stopped and cleared by {user}.</b>"
 shuffle_current_state: "🔀 Currently shuffle is <b>{state}</b> for this chat.\n\nUse <code>{cmd}</code> to toggle it."
 shuffle_updated: "🔀 Shuffle <b>{state}</b> by {user}."
 
+autoplay_current_state: "🔁 Currently autoplay is <b>{state}</b> for this chat.\n\nWhen the queue runs empty, the bot will automatically play recommended tracks based on the last played song.\n\nUse <code>{cmd}</code> to toggle it."
+autoplay_updated: "🔁 Autoplay <b>{state}</b> by {user}."
+
+# Chat settings
+settings_menu: |
+  <b>⚙️ Chat Settings</b>
+
+  Tap a button below to toggle that setting for this chat.
+
+  <b>🎵 Play mode:</b> {play}
+  <b>🛡 Admin mode:</b> {admin}
+  <b>🗑 Command delete:</b> {delete}
+  <b>🌐 Language:</b> {lang}
+settings_updated: "✅ Settings updated."
+play_mode_restricted: "🔒 <b>Play mode is enabled.</b> Only admins and authorized users can start playback."
+
+# Playlists
+playlist_create_usage: "⚠️ Usage: <code>/createplaylist [name]</code>"
+playlist_delete_usage: "⚠️ Usage: <code>/deleteplaylist [playlist id]</code>"
+playlist_add_usage: "⚠️ Usage: <code>/addtoplaylist [playlist id] [song url]</code>"
+playlist_remove_usage: "⚠️ Usage: <code>/removefromplaylist [playlist id] [song number or url]</code>"
+playlist_info_usage: "⚠️ Usage: <code>/playlistinfo [playlist id]</code>"
+playlist_not_found: "❌ Playlist not found."
+playlist_not_owner: "⛔ You can only manage playlists that you created."
+playlist_fetch_failed: "❌ Unable to fetch your playlists. Please try again later."
+playlist_limit_reached: "📁 You have reached the maximum limit of 10 playlists."
+playlist_created: "✅ Playlist <b>{name}</b> created!\n\nID: <code>{id}</code>\n\nPlay it anytime with <code>/play {id}</code>"
+playlist_create_failed: "❌ Failed to create the playlist: {error}"
+playlist_deleted: "✅ Playlist <b>{name}</b> deleted."
+playlist_delete_failed: "❌ Failed to delete the playlist: {error}"
+playlist_invalid_url: "❌ Invalid URL or unsupported platform."
+playlist_add_failed: "❌ Failed to add the track: {error}"
+playlist_song_added: "✅ Track <b>{name}</b> added to playlist <b>{pl}</b>."
+playlist_invalid_index: "❌ Invalid song number."
+playlist_song_not_found: "❌ Song not found in this playlist."
+playlist_remove_failed: "❌ Failed to remove the track: {error}"
+playlist_song_removed: "✅ Track removed from playlist <b>{name}</b>."
+playlist_info: |
+  <b>Playlist: {name}</b>
+  <b>Owner:</b> {owner}
+  <b>Songs:</b> {count}
+
+  {songs}
+playlist_more_songs: "...and {count} more\n"
+playlist_my: |
+  <b>📁 My Playlists</b>
+
+  {list}
+playlist_none: "📭 You don't have any playlists yet. Create one with <code>/createplaylist [name]</code>"
+playlist_play_failed: "❌ Could not load playlist: {error}"
+playlist_nothing_to_add: "❌ There's no track playing to add."
+playlist_added_to: "✅ Track <b>{name}</b> added to playlist <b>{pl}</b>."
+playlist_picker_title: "📁 <b>Choose a playlist</b> to save \"{title}\" to:"
+playlist_picker_empty: "📭 <b>You have no playlists yet.</b>\n\nCreate one to save \"{title}\":"
+playlist_picker_open: "📁 Choose a playlist."
+PLAYLIST_CREATE_SAVE_BTN: "➕ Create & save"
+
 skip_stopped: "⏹️ Playback stopped. Queue is empty.\nSkipped by: {user}"
 
 speed_usage: |
@@ -937,7 +1009,7 @@ stream_now_playing: |
   <b>❍ Dᴜʀᴀᴛɪᴏɴ :</b> {duration}
   <b>❍ Rᴇǫᴜᴇsᴛᴇᴅ ʙʏ :</b> {by}
 
-  <b>✦ ᴘᴏᴡᴇʀᴇᴅ ʙʏ » <a href="https://t.me/ll_BLAZE_DRAGUN_ll">⏤͟͞𝘿 𝙍 𝘼 𝙂 𝙊 𝙉 ⚡️</a></b>
+  <b>✦ ᴘᴏᴡᴇʀᴇᴅ ʙʏ »</b> <a href="{credit_url}">EchoWave · Anvu</a>
   </blockquote>
 
 # 👑 Sudo / Owner Join Messages
