@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
  * Copyright (C) 2026 Team Echo
@@ -20,6 +20,7 @@ var (
 	superGroupFilter    = tg.Custom(filterSuperGroup)
 	adminFilter         = tg.Custom(filterChatAdmins)
 	authFilter          = tg.Custom(filterAuthUsers)
+	playModeFilter      = tg.Custom(filterPlayMode)
 	ignoreChannelFilter = tg.Custom(filterChannel)
 	sudoOnlyFilter      = tg.Custom(filterSudo)
 	ownerFilter         = tg.Custom(filterOwner)
@@ -63,6 +64,12 @@ func filterChatAdmins(m *tg.NewMessage) bool {
 }
 
 func filterAuthUsers(m *tg.NewMessage) bool {
+	// Admin mode "everyone" opens up admin commands to all members.
+	mode, err := database.AdminMode(m.ChannelID())
+	if err == nil && mode == "everyone" {
+		return true
+	}
+
 	isAdmin, err := utils.IsChatAdmin(m.Client, m.ChannelID(), m.SenderID())
 	if err == nil && isAdmin {
 		return true
@@ -74,6 +81,32 @@ func filterAuthUsers(m *tg.NewMessage) bool {
 	}
 
 	m.Reply(F(m.ChannelID(), "only_admin_or_auth"))
+	return false
+}
+
+// filterPlayMode restricts /play (and similar) to admins and authorized users
+// when the chat's play mode is enabled. Otherwise everyone can start playback.
+func filterPlayMode(m *tg.NewMessage) bool {
+	if !filterSuperGroup(m) {
+		return false
+	}
+
+	enabled, err := database.PlayMode(m.ChannelID())
+	if err != nil || !enabled {
+		return true
+	}
+
+	isAdmin, err := utils.IsChatAdmin(m.Client, m.ChannelID(), m.SenderID())
+	if err == nil && isAdmin {
+		return true
+	}
+
+	isAuth, err := database.IsAuthorized(m.ChannelID(), m.SenderID())
+	if err == nil && isAuth {
+		return true
+	}
+
+	m.Reply(F(m.ChannelID(), "play_mode_restricted"))
 	return false
 }
 
