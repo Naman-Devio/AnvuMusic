@@ -140,7 +140,6 @@ cb_autoplay_disabled: "🔁 Autoplay disabled."
 cb_settings_extras_shown: "⚙️ Settings open — closing automatically in 5s."
 cb_settings_back: "↩ Back to controls."
 PLAYBACK_BACK_BTN: "↩ Back"
-PLAYBACK_SETTINGS_TIMER: "⏳ {seconds}s"
 
 # Pause callback
 cb_pause_success: "⏸️ Track paused at {position}"
