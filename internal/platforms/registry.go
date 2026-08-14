@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ● AnvuMusic
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
@@ -134,6 +134,25 @@ func SearchTracks(query string, video bool) ([]*state.Track, error) {
 		return nil, err
 	}
 	return tracks, nil
+}
+
+// GetTracksFromURL resolves a raw URL into track metadata using the platform
+// registry. It is used by playlist commands that receive a song URL as an
+// argument rather than inside a message.
+func GetTracksFromURL(url string, video bool) ([]*state.Track, error) {
+	if strings.TrimSpace(url) == "" {
+		return nil, errors.New("empty url")
+	}
+
+	tracks, errs := processURLs([]string{url}, video)
+	if len(tracks) > 0 {
+		return tracks, nil
+	}
+
+	if len(errs) > 0 {
+		return nil, errors.New(strings.Join(errs, "; "))
+	}
+	return nil, errors.New("no tracks found")
 }
 
 func processURLs(urls []string, video bool) ([]*state.Track, []string) {
