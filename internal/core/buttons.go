@@ -13,6 +13,7 @@ import (
 	tg "github.com/amarnathcjd/gogram/telegram"
 
 	"main/internal/config"
+	"main/internal/database"
 	"main/internal/locales"
 	"main/internal/utils"
 )
@@ -94,33 +95,121 @@ func GetPlayMarkup(chatID int64, r *RoomState, queued bool) tg.ReplyMarkup {
 		duration = track.Duration
 	}
 
-	progress := utils.GetProgressBar(r.Position(), duration)
-	progress = formatDuration(
-		r.Position(),
-	) + " " + progress + " " + formatDuration(
-		duration,
-	)
-
+	// Progress bar row (only when not queued)
 	if !queued {
+		progress := utils.GetProgressBar(r.Position(), duration)
+		progress = formatDuration(
+			r.Position(),
+		) + " " + progress + " " + formatDuration(
+			duration,
+		)
 		btn.AddRow(
 			tg.Button.Data(progress, "progress"),
 		)
 	}
+
+	// Row 1: Playback controls — Resume, Pause, Replay, Skip, Stop
 	btn.AddRow(
-		tg.Button.Data(F(chatID, "PLAY_BTN_RESUME"), prefix+"resume"),
-		tg.Button.Data(F(chatID, "PLAY_BTN_PAUSE"), prefix+"pause"),
-		tg.Button.Data(F(chatID, "PLAY_BTN_SKIP"), prefix+"skip"),
-	)
-	btn.AddRow(
-		tg.Button.Data(F(chatID, "PLAY_BTN_REPLAY"), "room:replay"),
-		tg.Button.Data(F(chatID, "PLAY_BTN_STOP"), prefix+"stop"),
+		tg.Button.Data("▷", prefix+"resume"),
+		tg.Button.Data("II", prefix+"pause"),
+		tg.Button.Data("⟳", prefix+"replay"),
+		tg.Button.Data("‣‣I", prefix+"skip"),
+		tg.Button.Data("▢", prefix+"stop"),
 	)
 
+	// Row 2: Seek back, Settings (⚙️), Seek forward
+	btn.AddRow(
+		tg.Button.Data("↩ 15s", prefix+"seekback_15"),
+		tg.Button.Data("⚙️", prefix+"settings"),
+		tg.Button.Data("15s ↪", prefix+"seek_15"),
+	)
+
+	// Row 3: Close only
 	btn.AddRow(
 		tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
 	)
 
 	return btn.Build()
+}
+
+// GetPlaybackSettingsMarkup builds the ⚙️ settings view shown when the settings
+// button is tapped on the now-playing panel: the autoplay + playlist actions
+// and a Back button that returns to the normal control panel. The view
+// auto-closes (single edit) after SettingsViewWindow seconds.
+func GetPlaybackSettingsMarkup(chatID int64, r *RoomState) tg.ReplyMarkup {
+	btn := tg.NewKeyboard()
+	prefix := "room:"
+	if r.ChannelPlayID() != 0 {
+		prefix = "croom:"
+	}
+
+	autoplayBtn := F(chatID, "AUTOPLAY_BTN_OFF")
+	if r.Autoplay() {
+		autoplayBtn = F(chatID, "AUTOPLAY_BTN_ON")
+	}
+	btn.AddRow(
+		tg.Button.Data(autoplayBtn, prefix+"autoplay"),
+		tg.Button.Data(F(chatID, "ADD_TO_PLAYLIST_BTN"), prefix+"playlist"),
+	)
+
+	btn.AddRow(
+		tg.Button.Data(F(chatID, "PLAYBACK_BACK_BTN"), prefix+"back"),
+	)
+
+	return btn.Build()
+}
+
+// GetPlaylistPickerMarkup builds the playlist chooser keyboard shown after
+// tapping the ➕ Playlist button on the now-playing panel.
+func GetPlaylistPickerMarkup(
+	chatID int64,
+	playlists []database.Playlist,
+) tg.ReplyMarkup {
+	kb := tg.NewKeyboard()
+
+	if len(playlists) == 0 {
+		kb.AddRow(tg.Button.Data(F(chatID, "PLAYLIST_CREATE_SAVE_BTN"), "plist:create"))
+	} else {
+		for _, pl := range playlists {
+			kb.AddRow(tg.Button.Data(pl.Name, "plist:"+pl.ID))
+		}
+	}
+
+	kb.AddRow(tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"))
+
+	return kb.Build()
+}
+
+// GetSettingsMarkup builds the per-chat settings panel keyboard.
+func GetSettingsMarkup(
+	chatID int64,
+	playMode bool,
+	adminMode string,
+	cmdDelete bool,
+) tg.ReplyMarkup {
+	kb := tg.NewKeyboard()
+
+	playBtn := F(chatID, "SETTINGS_PLAY_EVERYONE_BTN")
+	if playMode {
+		playBtn = F(chatID, "SETTINGS_PLAY_ADMINS_BTN")
+	}
+	kb.AddRow(tg.Button.Data(playBtn, "settings:play"))
+
+	adminBtn := F(chatID, "SETTINGS_ADMIN_ADMINS_BTN")
+	if adminMode == "everyone" {
+		adminBtn = F(chatID, "SETTINGS_ADMIN_EVERYONE_BTN")
+	}
+	kb.AddRow(tg.Button.Data(adminBtn, "settings:admin"))
+
+	deleteBtn := F(chatID, "SETTINGS_DELETE_OFF_BTN")
+	if cmdDelete {
+		deleteBtn = F(chatID, "SETTINGS_DELETE_ON_BTN")
+	}
+	kb.AddRow(tg.Button.Data(deleteBtn, "settings:delete"))
+
+	kb.AddRow(tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"))
+
+	return kb.Build()
 }
 
 func GetGroupHelpKeyboard(chatID int64) *tg.ReplyInlineMarkup {
@@ -135,44 +224,55 @@ func GetGroupHelpKeyboard(chatID int64) *tg.ReplyInlineMarkup {
 
 func GetStartMarkup(chatID int64) tg.ReplyMarkup {
 	bot := "https://t.me/" + Bot.Me().Username
-	return tg.NewKeyboard().
-		AddRow(
-			tg.Button.URL(
-				F(chatID, "ADD_ME_BTN"),
-				bot+"?startgroup&admin=invite_users",
-			),
-			tg.Button.Data(
-				F(chatID, "START_HELP_BTN"),
-				"help_cb",
-			),
-		).
-		AddRow(
-			tg.Button.URL(
-				F(chatID, "UPDATES_BTN"),
-				config.SupportChannel,
-			),
-			tg.Button.URL(
-				F(chatID, "SUPPORT_BTN"),
-				config.SupportChat,
-			),
-		).
-		AddRow(
-			tg.Button.URL(
-				F(chatID, "SOURCE_BTN"),
-				config.SupportChannel,
-			),
-			tg.Button.URL(
-				F(chatID, "START_DOCS_BTN"),
-				bot+"?start=pm_help",
-			),
-		).
-		AddRow(
-			tg.Button.Data(
-				F(chatID, "START_REFRESH_BTN"),
-				"start",
-			),
-		).
-		Build()
+	kb := tg.NewKeyboard()
+
+	// Row 1: Add to group
+	kb.AddRow(
+		tg.Button.URL(F(chatID, "ADD_ME_BTN"), bot+"?startgroup&admin=invite_users"),
+	)
+
+	// Row 2: Support (opens support panel), Language
+	kb.AddRow(
+		tg.Button.Data(F(chatID, "SUPPORT_BTN"), "support_panel"),
+		tg.Button.Data(F(chatID, "LANGUAGE_BTN"), "lang"),
+	)
+
+	// Row 3: Help
+	kb.AddRow(
+		tg.Button.Data(F(chatID, "HELP_BTN"), "help_cb"),
+	)
+
+	return kb.Build()
+}
+
+func GetSupportMarkup(chatID int64) tg.ReplyMarkup {
+	kb := tg.NewKeyboard()
+
+	// Row 1 (2×2 grid row 1): Support Group, Updates Channel
+	kb.AddRow(
+		tg.Button.URL(F(chatID, "SUPPORT_BTN"), config.SupportChat),
+		tg.Button.URL(F(chatID, "UPDATES_BTN"), config.SupportChannel),
+	)
+
+	// Row 2 (2×2 grid row 2): Owner, Source
+	if config.OwnerID != 0 {
+		kb.AddRow(
+			tg.Button.URL(F(chatID, "OWNER_BTN"), "tg://user?id="+utils.IntToStr(config.OwnerID)),
+			tg.Button.URL(F(chatID, "SOURCE_BTN"), "https://github.com/Naman-Devio/AnvuMusic/fork"),
+		)
+	} else {
+		kb.AddRow(
+			tg.Button.URL(F(chatID, "SOURCE_BTN"), "https://github.com/Naman-Devio/AnvuMusic/fork"),
+		)
+	}
+
+	// Row 3: Back to home & Close
+	kb.AddRow(
+		tg.Button.Data(F(chatID, "HELP_HOME_PANEL_BTN"), "start"),
+		tg.Button.Data(F(chatID, "CLOSE_BTN"), "close"),
+	)
+
+	return kb.Build()
 }
 
 func GetHelpKeyboard(chatID int64) *tg.ReplyInlineMarkup {

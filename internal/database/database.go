@@ -24,6 +24,7 @@ var (
 	db               *mongo.Database
 	settingsColl     *mongo.Collection
 	chatSettingsColl *mongo.Collection
+	playlistsColl    *mongo.Collection
 
 	logger  = gologging.GetLogger("Database")
 	dbCache = utils.NewCache[string, any](60 * time.Minute)
@@ -39,11 +40,11 @@ func Init(mongoURL string) (func(), error) {
 
 	logger.Debug("Successfully connected to MongoDB.")
 
-	// If you already use a live DB named "ArcMusic", point this string to that name or run a one-time rename so data is not left behind.
 	database = client.Database("AnvuMusic")
 	db = database
 	settingsColl = database.Collection("bot_settings")
 	chatSettingsColl = database.Collection("chat_settings")
+	playlistsColl = database.Collection("playlists")
 
 	migrateData()
 

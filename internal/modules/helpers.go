@@ -72,12 +72,22 @@ func shouldShowThumb(chatID int64) bool {
 	return !noThumb
 }
 
+// staticFallbackThumb is used when a track has no artwork available.
+const staticFallbackThumb = "https://i.ibb.co/t6z06g1/photo-2026-07-06-16-43-28-7659456606119458816.jpg"
+
 func resolveTrackMedia(chatID int64, track *state.Track) string {
-	if track == nil || !shouldShowThumb(chatID) || track.Artwork == "" {
+	if track == nil || !shouldShowThumb(chatID) {
 		return ""
 	}
 
-	art := strings.TrimSpace(track.Artwork)
+	art := track.Artwork
+	if art == "" {
+		// No artwork → use the static fallback image URL directly.
+		// Skip Generate() since the fallback is already a complete image.
+		return staticFallbackThumb
+	}
+
+	art = strings.TrimSpace(art)
 	if art == "" {
 		return ""
 	}
@@ -299,6 +309,11 @@ func SafeMessageHandler(
 			err = handler(m)
 		}
 
+		// Auto-delete the command message when the chat has that setting enabled.
+		if err == nil || errors.Is(err, tg.ErrEndGroup) {
+			maybeDeleteCommand(m)
+		}
+
 		if err != nil {
 			if errors.Is(err, tg.ErrEndGroup) {
 				gologging.Debug("Handler exited early (ErrEndGroup)")
@@ -311,6 +326,23 @@ func SafeMessageHandler(
 		}
 
 		return err
+	}
+}
+
+// maybeDeleteCommand removes the command message if the chat has command
+// auto-delete enabled. Only applies to group commands.
+func maybeDeleteCommand(m *tg.NewMessage) {
+	if m == nil || !m.IsGroup() {
+		return
+	}
+
+	enabled, err := database.CmdDelete(m.ChannelID())
+	if err != nil || !enabled {
+		return
+	}
+
+	if _, err := m.Delete(); err != nil {
+		gologging.DebugF("Failed to delete command message: %v", err)
 	}
 }
 

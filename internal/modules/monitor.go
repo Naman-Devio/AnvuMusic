@@ -51,7 +51,14 @@ func MonitorRooms() {
 					return
 				}
 
-				markup := core.GetPlayMarkup(r.EffectiveChatID(), r, false)
+				// Keep the ⚙️ settings view open while its countdown runs; the monitor
+				// must not wipe it back to the normal panel mid-view.
+				var markup telegram.ReplyMarkup
+				if r.InSettingsView() {
+					markup = core.GetPlaybackSettingsMarkup(r.EffectiveChatID(), r)
+				} else {
+					markup = core.GetPlayMarkup(r.EffectiveChatID(), r, false)
+				}
 				opts := &telegram.SendOptions{
 					ReplyMarkup: markup,
 					Entities:    statusMsg.Message.Entities,

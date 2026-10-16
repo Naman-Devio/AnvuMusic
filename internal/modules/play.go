@@ -293,12 +293,22 @@ func handlePlay(m *tg.NewMessage, opts *playOpts) error {
 	)
 
 	if query != "" && !m.IsReply() && !isDirectURLRequest(m) {
-		tracks, shouldSelect, err = resolveSearchSelection(m, replyMsg, opts)
-		if err != nil {
-			return tg.ErrEndGroup
-		}
-		if shouldSelect {
-			return tg.ErrEndGroup
+		if strings.HasPrefix(query, "tgpl_") {
+			tracks, err = loadPlaylistTracks(query, opts.Video)
+			if err != nil {
+				utils.EOR(replyMsg, F(m.ChannelID(), "playlist_play_failed", locales.Arg{
+					"error": err.Error(),
+				}))
+				return tg.ErrEndGroup
+			}
+		} else {
+			tracks, shouldSelect, err = resolveSearchSelection(m, replyMsg, opts)
+			if err != nil {
+				return tg.ErrEndGroup
+			}
+			if shouldSelect {
+				return tg.ErrEndGroup
+			}
 		}
 		isActive, err = ensureVoiceReady(r, replyMsg)
 		if err != nil {
@@ -504,8 +514,11 @@ func prepareRoomAndSearchMessage(
 
 	replyMsg, err := m.Reply(searchStr)
 	if err != nil {
-		gologging.ErrorF("Failed to send searching message: %v", err)
-		return nil, nil, err
+		replyMsg, err = m.Respond(searchStr)
+		if err != nil {
+			gologging.ErrorF("Failed to send searching message: %v", err)
+			return nil, nil, err
+		}
 	}
 
 	return r, replyMsg, nil
@@ -544,11 +557,18 @@ func ensureVoiceReady(r *core.RoomState, replyMsg *tg.NewMessage) (bool, error) 
 		return false, err
 	}
 
-	activeVC, err := cs.IsActiveVC(false)
+	activeVC, err := cs.IsActiveVC(true)
 	if err != nil {
 		gologging.ErrorF("Error checking voicechat state: %v", err)
 		utils.EOR(replyMsg, getErrorMessage(replyMsg.ChannelID(), err))
 		return false, err
+	}
+
+	if !activeVC {
+		// Attempt to auto-start the voice chat if bot is an admin with voice chat rights
+		if err := cs.StartVoiceChat(); err == nil {
+			activeVC, _ = cs.IsActiveVC(true)
+		}
 	}
 
 	if !activeVC {
@@ -817,7 +837,8 @@ func playTracksAndRespond(
 				"by":       mention,
 			})
 
-			utils.EOR(replyMsg, addedText, opt)
+			replyMsg, _ = utils.EOR(replyMsg, addedText, opt)
+			r.AddQueueMsg(replyMsg)
 		} else {
 			var b strings.Builder
 			b.WriteString(F(chatID, "play_added_multiple_header", locales.Arg{
@@ -832,7 +853,8 @@ func playTracksAndRespond(
 			}
 
 			b.WriteString(F(chatID, "play_queue_view_hint"))
-			utils.EOR(replyMsg, b.String())
+			replyMsg, _ = utils.EOR(replyMsg, b.String())
+			r.AddQueueMsg(replyMsg)
 		}
 	}
 

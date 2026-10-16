@@ -215,6 +215,7 @@ func (r *RoomState) Stop() error {
 	r.playing = false
 	r.paused = false
 	r.muted = false
+	r.autoplay = false
 	r.updatedAt = 0
 	if r.scheduledTimers != nil {
 		r.scheduledTimers.cancelScheduledUnmute()

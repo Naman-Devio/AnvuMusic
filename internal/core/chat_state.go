@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/Laky-64/gologging"
 	"github.com/amarnathcjd/gogram/telegram"
@@ -179,7 +180,7 @@ func (s *ChatState) IsAssistantBanned(force bool) (bool, error) {
 
 func (s *ChatState) IsActiveVC(force bool) (bool, error) {
 	s.mu.RLock()
-	shouldRefresh := !s.vc.fetched || force
+	shouldRefresh := !s.vc.fetched || !s.vc.active || force
 	s.mu.RUnlock()
 
 	if shouldRefresh {
@@ -191,6 +192,23 @@ func (s *ChatState) IsActiveVC(force bool) (bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.vc.active, nil
+}
+
+// StartVoiceChat attempts to auto-start the voice chat using the bot client
+func (s *ChatState) StartVoiceChat() error {
+	peer, err := Bot.ResolvePeer(s.ChatID)
+	if err != nil {
+		return err
+	}
+	_, err = Bot.PhoneCreateGroupCall(&telegram.PhoneCreateGroupCallParams{
+		Peer:     peer,
+		RandomID: int32(time.Now().UnixNano()),
+	})
+	if err == nil {
+		time.Sleep(1 * time.Second)
+		return s.refreshVCState()
+	}
+	return err
 }
 
 func (s *ChatState) RefreshAssistantState() error {

@@ -46,14 +46,16 @@ type RoomState struct {
 	loop      int
 
 	// Queue State
-	queue   []*state.Track
-	shuffle bool
+	queue    []*state.Track
+	shuffle  bool
+	autoplay bool
 
 	// Automation
 	*scheduledTimers
 
 	// Metadata & UI
 	statusMsg *telegram.NewMessage
+	queueMsgs []*telegram.NewMessage
 	Data      map[string]any
 
 	// Internal Components
@@ -382,6 +384,21 @@ func (r *RoomState) DeleteData(k string) {
 	delete(r.Data, k)
 }
 
+// SettingsViewWindow is how long the ⚙️ playback settings view stays open
+// before it auto-returns to the normal control panel.
+const SettingsViewWindow = 5 * time.Second
+
+// InSettingsView reports whether the ⚙️ playback settings view is currently
+// open on the now-playing panel (i.e. the countdown has not expired yet).
+func (r *RoomState) InSettingsView() bool {
+	ok, v := r.GetData("settings_until")
+	if !ok {
+		return false
+	}
+	u, ok := v.(int64)
+	return ok && time.Now().Unix() < u
+}
+
 func (r *RoomState) SetShuffle(enabled bool) {
 	if r.IsDestroyed() {
 		return
@@ -391,6 +408,24 @@ func (r *RoomState) SetShuffle(enabled bool) {
 	r.shuffle = enabled
 }
 
+func (r *RoomState) Autoplay() bool {
+	if r.IsDestroyed() {
+		return false
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.autoplay
+}
+
+func (r *RoomState) SetAutoplay(enabled bool) {
+	if r.IsDestroyed() {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.autoplay = enabled
+}
+
 func (r *RoomState) SetStatusMsg(m *telegram.NewMessage) {
 	if r.IsDestroyed() {
 		return
@@ -398,6 +433,37 @@ func (r *RoomState) SetStatusMsg(m *telegram.NewMessage) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.statusMsg = m
+}
+
+// AddQueueMsg tracks a "Added to Queue" reply message so it can be cleaned up
+// when the playback session ends.
+func (r *RoomState) AddQueueMsg(m *telegram.NewMessage) {
+	if r.IsDestroyed() || m == nil {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.queueMsgs = append(r.queueMsgs, m)
+}
+
+func (r *RoomState) QueueMsgs() []*telegram.NewMessage {
+	if r.IsDestroyed() {
+		return nil
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	out := make([]*telegram.NewMessage, len(r.queueMsgs))
+	copy(out, r.queueMsgs)
+	return out
+}
+
+func (r *RoomState) ClearQueueMsgs() {
+	if r.IsDestroyed() {
+		return
+	}
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.queueMsgs = nil
 }
 
 // State checks

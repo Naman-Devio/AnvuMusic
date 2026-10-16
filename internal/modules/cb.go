@@ -29,13 +29,17 @@ import (
 type actionHandler func(*tg.CallbackQuery, *core.RoomState, int64) error
 
 var actionHandlers = map[string]actionHandler{
-	"pause":  handlePauseAction,
-	"resume": handleResumeAction,
-	"replay": handleReplayAction,
-	"skip":   handleSkipAction,
-	"stop":   handleStopAction,
-	"mute":   handleMuteAction,
-	"unmute": handleUnmuteAction,
+	"pause":    handlePauseAction,
+	"resume":   handleResumeAction,
+	"replay":   handleReplayAction,
+	"skip":     handleSkipAction,
+	"stop":     handleStopAction,
+	"mute":     handleMuteAction,
+	"unmute":   handleUnmuteAction,
+	"autoplay": handleAutoplayAction,
+	"playlist": handleAddToPlaylistAction,
+	"settings": handleSettingsAction,
+	"back":     handleSettingsBackAction,
 }
 
 func cancelHandler(cb *tg.CallbackQuery) error {
@@ -330,6 +334,7 @@ func handleSkipAction(
 	gologging.InfoF("Callback → skip, chatID=%d", chatID)
 
 	if len(r.Queue()) == 0 {
+		cleanupRoomMessages(r)
 		core.DeleteRoom(r.ChatID())
 		editMessage(cb, F(cb.ChannelID(), "skip_stopped", locales.Arg{
 			"user": utils.MentionHTML(cb.Sender),
@@ -355,6 +360,7 @@ func handleSkipAction(
 			}),
 		)
 		cb.Answer(F(cb.ChannelID(), "cb_skip_download_failed"), opt)
+		cleanupRoomMessages(r)
 		core.DeleteRoom(r.ChatID())
 
 		return tg.ErrEndGroup
@@ -364,6 +370,7 @@ func handleSkipAction(
 		gologging.ErrorF("Play error: %v", err)
 		utils.EOR(statusMsg, F(cb.ChannelID(), "stream_play_fail"))
 		cb.Answer(F(cb.ChannelID(), "cb_skip_play_failed"), opt)
+		cleanupRoomMessages(r)
 		core.DeleteRoom(r.ChatID())
 
 		return tg.ErrEndGroup
@@ -409,6 +416,7 @@ func handleStopAction(
 
 	gologging.InfoF("Callback → stop, chatID=%d", chatID)
 
+	cleanupRoomMessages(r)
 	core.DeleteRoom(r.ChatID())
 
 	cb.Answer(F(cb.ChannelID(), "cb_stop_success"), opt)
@@ -472,6 +480,271 @@ func handleUnmuteAction(
 
 	cb.Answer(F(cb.ChannelID(), "cb_unmute_success"), opt)
 	updatePlaybackMessage(cb, r, "playing")
+	return tg.ErrEndGroup
+}
+
+// renderPlaybackPanel re-renders the now-playing panel, keeping the ⚙️ settings
+// view open while its countdown is running and falling back to the normal
+// control panel otherwise. Used by callbacks, the countdown ticker and the
+// room monitor so the two views never fight each other.
+func renderPlaybackPanel(r *core.RoomState) {
+	if r == nil || r.IsDestroyed() {
+		return
+	}
+	msg := r.StatusMsg()
+	if msg == nil {
+		return
+	}
+
+	var markup tg.ReplyMarkup
+	if r.InSettingsView() {
+		markup = core.GetPlaybackSettingsMarkup(r.EffectiveChatID(), r)
+	} else {
+		markup = core.GetPlayMarkup(r.EffectiveChatID(), r, false)
+	}
+
+	if _, err := msg.Edit(msg.Text(), &tg.SendOptions{
+		ParseMode:   "HTML",
+		ReplyMarkup: markup,
+	}); err != nil {
+		gologging.ErrorF("Edit error: %v", err)
+	}
+}
+
+// refreshSettingsView resets the ⚙️ settings view window back to 5 seconds and
+// schedules its auto-close. Used when an action is taken while the view is open
+// (autoplay toggle, playlist picker) so the user can keep using it.
+func refreshSettingsView(r *core.RoomState) {
+	if r == nil || !r.InSettingsView() {
+		return
+	}
+	until := time.Now().Add(core.SettingsViewWindow).Unix()
+	r.SetData("settings_until", until)
+	scheduleSettingsClose(r, until)
+}
+
+// scheduleSettingsClose restores the normal control panel with a single delayed
+// edit once the ⚙️ settings view window expires. No per-second edits, so no
+// flood risk. A newer ⚙️ tap (newer settings_until) makes older timers exit
+// quietly.
+func scheduleSettingsClose(r *core.RoomState, until int64) {
+	time.AfterFunc(core.SettingsViewWindow, func() {
+		if r.IsDestroyed() {
+			return
+		}
+		ok, v := r.GetData("settings_until")
+		if !ok {
+			return
+		}
+		u, isInt := v.(int64)
+		if !isInt || u != until {
+			return // superseded by a newer ⚙️ tap
+		}
+		r.DeleteData("settings_until")
+		renderPlaybackPanel(r)
+	})
+}
+
+// handleSettingsAction opens the ⚙️ settings view on the now-playing panel,
+// replacing the control rows with autoplay/playlist + back.
+func handleSettingsAction(
+	cb *tg.CallbackQuery,
+	r *core.RoomState,
+	chatID int64,
+) error {
+	opt := &tg.CallbackOptions{Alert: true}
+
+	until := time.Now().Add(core.SettingsViewWindow).Unix()
+	r.SetData("settings_until", until)
+
+	cb.Answer(F(cb.ChannelID(), "cb_settings_extras_shown"), opt)
+
+	renderPlaybackPanel(r)
+	scheduleSettingsClose(r, until)
+
+	return tg.ErrEndGroup
+}
+
+// handleSettingsBackAction closes the ⚙️ settings view and returns the panel to
+// the normal control rows.
+func handleSettingsBackAction(
+	cb *tg.CallbackQuery,
+	r *core.RoomState,
+	chatID int64,
+) error {
+	opt := &tg.CallbackOptions{Alert: true}
+
+	r.DeleteData("settings_until")
+	cb.Answer(F(cb.ChannelID(), "cb_settings_back"), opt)
+
+	renderPlaybackPanel(r)
+
+	return tg.ErrEndGroup
+}
+
+func handleAutoplayAction(
+	cb *tg.CallbackQuery,
+	r *core.RoomState,
+	chatID int64,
+) error {
+	opt := &tg.CallbackOptions{Alert: true}
+
+	next := !r.Autoplay()
+	r.SetAutoplay(next)
+
+	if next {
+		cb.Answer(F(cb.ChannelID(), "cb_autoplay_enabled"), opt)
+	} else {
+		cb.Answer(F(cb.ChannelID(), "cb_autoplay_disabled"), opt)
+	}
+
+	// Refresh the panel so the button reflects the new state. If the ⚙️ settings
+	// view is open, keep it open with a reset countdown so the user can toggle
+	// both actions.
+	refreshSettingsView(r)
+	renderPlaybackPanel(r)
+
+	return tg.ErrEndGroup
+}
+
+// playlistPickerRooms remembers which room chat a user's playlist picker was
+// opened from (userID → room chatID). This keeps the picker working for
+// channel-play setups, where the panel lives in the group but the room is
+// keyed by the linked channel.
+var playlistPickerRooms = make(map[int64]int64)
+
+// handleAddToPlaylistAction opens a playlist picker so the caller can choose
+// which playlist to save the currently playing track into.
+func handleAddToPlaylistAction(
+	cb *tg.CallbackQuery,
+	r *core.RoomState,
+	chatID int64,
+) error {
+	opt := &tg.CallbackOptions{Alert: true}
+
+	track := r.Track()
+	if track == nil || track.ID == "" {
+		cb.Answer(F(cb.ChannelID(), "playlist_nothing_to_add"), opt)
+		return tg.ErrEndGroup
+	}
+
+	playlists, err := database.GetUserPlaylists(cb.SenderID)
+	if err != nil {
+		cb.Answer(F(cb.ChannelID(), "playlist_fetch_failed"), opt)
+		return tg.ErrEndGroup
+	}
+
+	playlistPickerRooms[cb.SenderID] = chatID
+
+	// Keep the ⚙️ settings view open with a reset countdown while the user picks
+	// a playlist, so the panel is still in settings view when they come back.
+	refreshSettingsView(r)
+
+	title := html.EscapeString(utils.ShortTitle(track.Title, 40))
+	key := "playlist_picker_title"
+	if len(playlists) == 0 {
+		key = "playlist_picker_empty"
+	}
+
+	if _, err := cb.Respond(F(cb.ChannelID(), key, locales.Arg{
+		"title": title,
+	}), &tg.SendOptions{
+		ParseMode:   "HTML",
+		ReplyMarkup: core.GetPlaylistPickerMarkup(cb.ChannelID(), playlists),
+	}); err != nil {
+		gologging.ErrorF("Failed to send playlist picker: %v", err)
+		return tg.ErrEndGroup
+	}
+
+	cb.Answer(F(cb.ChannelID(), "playlist_picker_open"), opt)
+	return tg.ErrEndGroup
+}
+
+// playlistPickCallback saves the currently playing track into the playlist
+// chosen from the picker (or a newly created one via "plist:create").
+func playlistPickCallback(cb *tg.CallbackQuery) error {
+	opt := &tg.CallbackOptions{Alert: true}
+	chatID := cb.ChannelID()
+	userID := cb.SenderID
+
+	roomChatID, ok := playlistPickerRooms[userID]
+	delete(playlistPickerRooms, userID)
+	if !ok {
+		roomChatID = chatID
+	}
+
+	r, err := getRoomForCallback(roomChatID)
+	if err != nil {
+		cb.Answer(F(chatID, "room_not_active_cb"), opt)
+		return tg.ErrEndGroup
+	}
+
+	track := r.Track()
+	if track == nil || track.ID == "" {
+		cb.Answer(F(chatID, "playlist_nothing_to_add"), opt)
+		_, _ = cb.Delete()
+		return tg.ErrEndGroup
+	}
+
+	data := strings.TrimPrefix(cb.DataString(), "plist:")
+
+	var playlistID string
+	if data == "create" {
+		playlists, err := database.GetUserPlaylists(userID)
+		if err != nil {
+			cb.Answer(F(chatID, "playlist_fetch_failed"), opt)
+			return tg.ErrEndGroup
+		}
+		if len(playlists) >= maxUserPlaylists {
+			cb.Answer(F(chatID, "playlist_limit_reached"), opt)
+			return tg.ErrEndGroup
+		}
+
+		playlistID, err = database.CreatePlaylist("My Playlist", userID)
+		if err != nil {
+			cb.Answer(F(chatID, "playlist_create_failed", locales.Arg{
+				"error": err.Error(),
+			}), opt)
+			return tg.ErrEndGroup
+		}
+	} else {
+		playlist, err := database.GetPlaylist(data)
+		if err != nil {
+			cb.Answer(F(chatID, "playlist_not_found"), opt)
+			_, _ = cb.Delete()
+			return tg.ErrEndGroup
+		}
+		if playlist.UserID != userID {
+			cb.Answer(F(chatID, "playlist_not_owner"), opt)
+			return tg.ErrEndGroup
+		}
+		playlistID = data
+	}
+
+	song := database.PlaylistSong{
+		URL:      track.URL,
+		Name:     track.Title,
+		TrackID:  track.ID,
+		Duration: track.Duration,
+		Platform: string(track.Source),
+	}
+
+	if err := database.AddSongToPlaylist(playlistID, song); err != nil {
+		cb.Answer(F(chatID, "playlist_add_failed", locales.Arg{
+			"error": err.Error(),
+		}), opt)
+		return tg.ErrEndGroup
+	}
+
+	playlist, err := database.GetPlaylist(playlistID)
+	if err == nil {
+		cb.Answer(F(chatID, "playlist_added_to", locales.Arg{
+			"name": html.EscapeString(song.Name),
+			"pl":   html.EscapeString(playlist.Name),
+		}), opt)
+	}
+
+	_, _ = cb.Delete()
 	return tg.ErrEndGroup
 }
 

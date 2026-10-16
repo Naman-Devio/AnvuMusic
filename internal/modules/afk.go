@@ -9,7 +9,6 @@ package modules
 
 import (
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -19,8 +18,7 @@ import (
 )
 
 type afkEntry struct {
-	Reason  string
-	Since   time.Time
+	Since time.Time
 }
 
 var (
@@ -29,11 +27,8 @@ var (
 )
 
 func init() {
-	helpTexts["/afk"] = `<i>Mark yourself as AFK (Away From Keyboard).</i>
-
-<u>Usage:</u>
-<b>/afk</b>               — Go AFK with no reason
-<b>/afk [reason]</b>     — Go AFK with a reason
+	helpTexts["/afk"] = `<i>Mark yourself as AFK (Away From Keyboard).</i>	<u>Usage:</u>
+<b>/afk</b> — Go AFK
 
 <b>⚙️ Behavior:</b>
 • Others are notified if they mention you while AFK
@@ -46,20 +41,15 @@ func afkHandler(m *tg.NewMessage) error {
 	}
 
 	userID := m.SenderID()
-	reason := strings.TrimSpace(m.Args())
 
 	afkMu.Lock()
 	afkStore[userID] = &afkEntry{
-		Reason: reason,
-		Since:  time.Now(),
+		Since: time.Now(),
 	}
 	afkMu.Unlock()
 
 	mention := utils.MentionHTML(m.Sender)
 	text := fmt.Sprintf("😴 %s <b>is now AFK.</b>", mention)
-	if reason != "" {
-		text += fmt.Sprintf("\n<i>📝 Reason: %s</i>", reason)
-	}
 
 	m.Reply(text)
 	return tg.ErrEndGroup
@@ -116,9 +106,6 @@ func checkAFK(m *tg.NewMessage) {
 			"<b>💤 That user is AFK</b> <i>(for %s)</i>",
 			elapsed,
 		)
-		if entry.Reason != "" {
-			text += fmt.Sprintf("\n<i>📝 Reason: %s</i>", entry.Reason)
-		}
 		m.Reply(text)
 		break
 	}

@@ -68,6 +68,8 @@ func handleStop(m *telegram.NewMessage, cplay bool) error {
 		return telegram.ErrEndGroup
 	}
 
+	cleanupRoomMessages(r)
+
 	core.DeleteRoom(r.ChatID())
 	m.Reply(
 		F(

@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ● AnvuMusic
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
@@ -45,6 +45,13 @@ var (
 	PingImage           string
 	Port                string
 	MustJoin            string
+
+	// External APIs (Yuki & Shruti)
+	YukiAPIKey      string
+	YukiAPIURL      string
+	ShrutiAPIKey    string
+	ShrutiAPIURL    string
+	ShrutiBackupURL string
 
 	// System & Logging
 	StartTime   time.Time
@@ -121,6 +128,13 @@ func loadConfig() {
 	)
 	Port = getString("PORT", "8000")
 	MustJoin = getString("MUST_JOIN", "ECHOWAVESUPPORT")
+
+	// External APIs
+	YukiAPIKey = getString("YUKI_API_KEY", "")
+	YukiAPIURL = getString("YUKI_API_URL", "https://music.yukiapi.site")
+	ShrutiAPIKey = getString("SHRUTI_API_KEY", "")
+	ShrutiAPIURL = getString("SHRUTI_API_URL", "https://api.shrutibots.site")
+	ShrutiBackupURL = getString("SHRUTI_BACKUP_URL", "https://api01.shrutibots.site")
 }
 
 func validateConfig() {

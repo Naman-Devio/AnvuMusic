@@ -154,9 +154,23 @@ func startHandler(m *tg.NewMessage) error {
 
 func startCB(cb *tg.CallbackQuery) error {
 	cb.Answer("")
-	caption := buildStartCaptionFor(cb.Sender, cb.Client.Me()) + "\n\n" + F(cb.ChannelID(), "start_cb_panel")
+	caption := buildStartCaptionFor(cb.Sender, cb.Client.Me())
 	sendOpt := &tg.SendOptions{
 		ReplyMarkup: core.GetStartMarkup(cb.ChannelID()),
+		NoForwards:  true,
+	}
+	if config.StartImage != "" {
+		sendOpt.Media = config.StartImage
+	}
+	cb.Edit(caption, sendOpt)
+	return tg.ErrEndGroup
+}
+
+func supportPanelCB(cb *tg.CallbackQuery) error {
+	cb.Answer("")
+	caption := buildStartCaptionFor(cb.Sender, cb.Client.Me())
+	sendOpt := &tg.SendOptions{
+		ReplyMarkup: core.GetSupportMarkup(cb.ChannelID()),
 		NoForwards:  true,
 	}
 	if config.StartImage != "" {

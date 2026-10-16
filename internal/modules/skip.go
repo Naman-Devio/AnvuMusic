@@ -64,6 +64,7 @@ func handleSkip(m *telegram.NewMessage, cplay bool) error {
 	mention := utils.MentionHTML(m.Sender)
 
 	if len(r.Queue()) == 0 {
+		cleanupRoomMessages(r)
 		core.DeleteRoom(r.ChatID())
 		m.Reply(F(chatID, "skip_stopped", locales.Arg{
 			"user": mention,
@@ -94,6 +95,7 @@ func handleSkip(m *telegram.NewMessage, cplay bool) error {
 			core.Bot.SendMessage(chatID, txt)
 		}
 
+		cleanupRoomMessages(r)
 		core.DeleteRoom(r.ChatID())
 		return telegram.ErrEndGroup
 	}
@@ -105,6 +107,7 @@ func handleSkip(m *telegram.NewMessage, cplay bool) error {
 		} else {
 			core.Bot.SendMessage(chatID, txt)
 		}
+		cleanupRoomMessages(r)
 		core.DeleteRoom(r.ChatID())
 		return telegram.ErrEndGroup
 	}

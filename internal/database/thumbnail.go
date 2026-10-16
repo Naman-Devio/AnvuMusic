@@ -23,6 +23,12 @@ import (
 	"time"
 
 	"github.com/Laky-64/gologging"
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/font/gofont/goregular"
+	"golang.org/x/image/font/opentype"
+	"golang.org/x/image/math/fixed"
+	"golang.org/x/image/webp"
 )
 
 // ─── Cache ───────────────────────────────────────────────────────────────────
@@ -53,40 +59,51 @@ type TrackInfo struct {
 // If a cached copy exists it is returned immediately.
 // On any render failure it falls back to downloading the raw artwork.
 func Generate(t TrackInfo) (string, error) {
+	gologging.DebugF("[thumbgen] Generating thumbnail for %s (artwork: %.80s)", t.VideoID, t.Artwork)
+
 	cachePath := filepath.Join(cacheDir, fmt.Sprintf("%s_anvu.png", t.VideoID))
 	if _, err := os.Stat(cachePath); err == nil {
+		gologging.DebugF("[thumbgen] Cache hit: %s", cachePath)
 		return cachePath, nil
 	}
 
 	// Download raw artwork
 	rawPath := filepath.Join(cacheDir, fmt.Sprintf("raw_%s.jpg", t.VideoID))
 	if err := downloadFile(t.Artwork, rawPath); err != nil {
+		gologging.WarnF("[thumbgen] download failed: %v — falling back to raw URL", err)
 		return "", fmt.Errorf("failed to download artwork: %w", err)
 	}
 	defer os.Remove(rawPath)
+	gologging.DebugF("[thumbgen] Artwork downloaded to %s", rawPath)
 
 	src, err := loadImage(rawPath)
 	if err != nil {
-		return t.Artwork, nil // fallback to URL
+		gologging.WarnF("[thumbgen] loadImage failed: %v", err)
+		return "", fmt.Errorf("loadImage failed: %w", err)
 	}
+	gologging.DebugF("[thumbgen] Image loaded successfully (%dx%d)", src.Bounds().Dx(), src.Bounds().Dy())
 
 	out, err := render(src, t)
 	if err != nil {
 		gologging.ErrorF("[thumbgen] render failed: %v", err)
-		return t.Artwork, nil // fallback to URL
+		return "", fmt.Errorf("render failed: %w", err)
 	}
+	gologging.DebugF("[thumbgen] Render complete")
 
 	f, err := os.Create(cachePath)
 	if err != nil {
-		return t.Artwork, nil
+		gologging.ErrorF("[thumbgen] os.Create failed: %v", err)
+		return "", fmt.Errorf("os.Create failed: %w", err)
 	}
 	defer f.Close()
 
 	if err := png.Encode(f, out); err != nil {
 		os.Remove(cachePath)
-		return t.Artwork, nil
+		gologging.ErrorF("[thumbgen] png.Encode failed: %v", err)
+		return "", fmt.Errorf("png.Encode failed: %w", err)
 	}
 
+	gologging.InfoF("[thumbgen] Thumbnail saved: %s", cachePath)
 	return cachePath, nil
 }
 
@@ -107,15 +124,46 @@ const (
 	H = 720
 )
 
-// Bitmap font used by drawTextSimple. 7×9 pixel glyphs (width × height).
-const (
-	fontW = 7
-	fontH = 9
+
+
+// ─── TrueType Font (30px) ─────────────────────────────────────────────────────
+
+var (
+	thumbFontOnce sync.Once
+	thumbFont     font.Face
 )
 
-// bitmapFont maps runes to a slice of rows; each row is a bitmask of width fontW.
-var bitmapFont = map[rune][]uint16{
-	' ': {0, 0, 0, 0, 0, 0, 0, 0, 0},
+func getThumbFont() font.Face {
+	thumbFontOnce.Do(func() {
+		f, err := opentype.Parse(goregular.TTF)
+		if err != nil {
+			gologging.ErrorF("[thumbgen] failed to parse TTF font: %v — falling back to basicfont", err)
+			thumbFont = basicfont.Face7x13
+			return
+		}
+		thumbFont, err = opentype.NewFace(f, &opentype.FaceOptions{
+			Size:    30,
+			DPI:     72,
+			Hinting: font.HintingFull,
+		})
+		if err != nil {
+			gologging.ErrorF("[thumbgen] failed to create font face: %v — falling back to basicfont", err)
+			thumbFont = basicfont.Face7x13
+		}
+	})
+	return thumbFont
+}
+
+// drawTextSimple renders text using a 30pt TrueType font (Go Regular).
+func drawTextSimple(img *image.RGBA, text string, x, y int, c color.RGBA, _ int) {
+	face := getThumbFont()
+	d := &font.Drawer{
+		Dst:  img,
+		Src:  image.NewUniform(c),
+		Face: face,
+		Dot:  fixed.P(x, y),
+	}
+	d.DrawString(text)
 }
 
 func render(src image.Image, t TrackInfo) (image.Image, error) {
@@ -441,27 +489,7 @@ func drawCircle(img *image.RGBA, cx, cy, r int, c color.RGBA) {
 	}
 }
 
-// drawTextSimple renders ASCII text using a 7×9 bitmap font baked inline.
-// weight=2 doubles the pixel width for a bolder look.
-func drawTextSimple(img *image.RGBA, text string, x, y int, c color.RGBA, weight int) {
-	cx := x
-	for _, ch := range text {
-		bm, ok := bitmapFont[ch]
-		if !ok {
-			bm = bitmapFont[' ']
-		}
-		for row := 0; row < fontH; row++ {
-			for col := 0; col < fontW; col++ {
-				if bm[row]&(1<<uint(fontW-1-col)) != 0 {
-					for w := 0; w < weight; w++ {
-						blendPixel(img, cx+col*weight+w, y+row*weight, c)
-					}
-				}
-			}
-		}
-		cx += (fontW + 1) * weight
-	}
-}
+
 
 // blendPixel alpha-composites c over the existing pixel at (x, y).
 func blendPixel(img *image.RGBA, x, y int, c color.RGBA) {
@@ -531,8 +559,12 @@ func loadImage(path string) (image.Image, error) {
 	}
 	defer f.Close()
 
-	// Try JPEG first, then PNG
+	// Try JPEG first, then WebP, then PNG
 	img, err := jpeg.Decode(f)
+	if err != nil {
+		f.Seek(0, 0)
+		img, err = webp.Decode(f)
+	}
 	if err != nil {
 		f.Seek(0, 0)
 		img, err = png.Decode(f)
