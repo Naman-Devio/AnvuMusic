@@ -1,4 +1,4 @@
-﻿/*
+/*
  * ● AnvuMusic
  * ○ A high-performance engine for streaming music in Telegram voicechats.
  *
