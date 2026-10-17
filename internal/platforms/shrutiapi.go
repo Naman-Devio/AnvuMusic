@@ -6,7 +6,7 @@
  *
  * Configured YouTube Stream/Download Providers:
  *   1. Yuki       — direct audio stream API credit goes to @Z0iiw
- *   2. ShrutiApi  — direct audio stream (Primary: api.shrutibots.site, Backup: api01.shrutibots.site) credit goes to @Yaduwanshi_Nand
+ *   2. ShrutiApi  — direct audio stream (Primary: api.shrutibots.in, Backup: api01.shrutibots.site) credit goes to @Yaduwanshi_Nand
  */
 
 package platforms
@@ -35,7 +35,7 @@ import (
 const (
 	PlatformShrutiApi     state.PlatformName = "ShrutiApi"
 	yukiDefaultBaseURL                       = "https://music.yukiapi.site"
-	shrutiPrimaryBaseURL                     = "https://api.shrutibots.site"
+	shrutiPrimaryBaseURL                     = "https://api.shrutibots.in"
 	shrutiBackupBaseURL                      = "https://api01.shrutibots.site"
 )
 
@@ -302,7 +302,7 @@ func (s *ShrutiApiPlatform) downloadWithYuki(
 }
 
 // ── Shruti API ──────────────────────────────────────────────
-// Primary: https://api.shrutibots.site
+// Primary: https://api.shrutibots.in
 // Backup:  https://api01.shrutibots.site
 // Endpoint: GET /download?url={encoded_yt_url}&type={media_type}&api_key={api_key}
 

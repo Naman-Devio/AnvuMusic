@@ -133,7 +133,7 @@ func loadConfig() {
 	YukiAPIKey = getString("YUKI_API_KEY", "")
 	YukiAPIURL = getString("YUKI_API_URL", "https://music.yukiapi.site")
 	ShrutiAPIKey = getString("SHRUTI_API_KEY", "")
-	ShrutiAPIURL = getString("SHRUTI_API_URL", "https://api.shrutibots.site")
+	ShrutiAPIURL = getString("SHRUTI_API_URL", "https://api.shrutibots.in")
 	ShrutiBackupURL = getString("SHRUTI_BACKUP_URL", "https://api01.shrutibots.site")
 }
 
